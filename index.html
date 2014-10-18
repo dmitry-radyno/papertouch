@@ -5,23 +5,54 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font: 13px Helvetica, Arial; }
+        #touch {
+            position: absolute;
+            border: 1px solid #00ff00;
+        }
+        #touchLog {
+            position: absolute;
+            left: 400px;
+            top: 0px;
+        }
+        #imageLog {
+            position: absolute;
+            left: 400px;
+            top: 100px;
+            width: 400px;
+            height: 400px;
+            font-family: monospace;
+            font-size: 6px;
+        }
+        .px {
+            position: absolute;
+            background: #000;
+            width: 10px; height: 10px;
+        }
     </style>
 
     <script src="/socket.io/socket.io.js"></script>
     <script type="text/javascript" src="scripts/jsfeat.js"></script>
+    <script type="text/javascript" src="scripts/alg.js"></script>
 </head>
 <body>
+<div id="touch"></div>
+<div id="touchLog"></div>
+<div id="imageLog"></div>
 <video id="webcam" width="320" height="240" loop muted style="display: none;"></video>
 <canvas id="canvas" width="320" height="240"></canvas>
+<button id="findButtons">Find buttons</button>
 
 <script>
+    var width = 320,
+        height = 240;
+
     var video = document.getElementById('webcam'),
         canvas = document.getElementById('canvas'),
         ctx = canvas.getContext('2d');
 
     var processor = (function() {
-        var img_u8 = new jsfeat.matrix_t(320, 240, jsfeat.U8C1_t),
-            img_gxgy = new jsfeat.matrix_t(320, 240, jsfeat.S32C2_t),
+        var img_u8 = new jsfeat.matrix_t(width, height, jsfeat.U8C1_t),
+            img_gxgy = new jsfeat.matrix_t(width, height, jsfeat.S32C2_t),
             iterateImage = function(data, width, height, callback) {
                 var row, col, index;
                 for (row = 0; row < height; row++) {
@@ -31,11 +62,113 @@
                     }
                 }
             },
-            lookForTouches = function() {
-                var bw = getBW(),
+            takePicture = function() {
+                ctx.drawImage(video, 0, 0, width, height);
+                return ctx.getImageData(0, 0, width, height);
+            },
+            logImage = function(bw) {
+                var data = "",
+                    height = bw.length,
+                    width = bw[0].length;
+
+                for (var row = 0; row < height; row++) {
+                    for (var col = 0; col < width; col++) {
+                        data += (bw[row][col] ? "1" : "&nbsp;");
+                    }
+                    data += "<br>";
+                }
+                document.getElementById("imageLog").innerHTML = data;
+            },
+            isEmptyRow = function(row) {
+                for (var i = 0; i < row.length; i++) {
+                    if (row[i] > 0) {
+                        return false;
+                    }
+                }
+                return true;
+            },
+            cropWhite = function(img) {
+                var startRow = 0,
+                    endRow = img.length;
+
+                for (var i = 0; i < img.length; i++) {
+                    if (isEmptyRow(img[i])) {
+                        startRow = Math.max(startRow, i);
+                    } else {
+                        break;
+                    }
+                }
+                for (var i = img.length - 1; i >= 0; i--) {
+                    if (isEmptyRow(img[i])) {
+                        endRow = Math.min(endRow, i);
+                    } else {
+                        break;
+                    }
+                }
+
+                var startCol = 0;
+                for (var col = 0; col < img[0].length; col++) {
+                    var isEmpty = true;
+                    for (var row = 0; row < img.length; row++) {
+                        if (img[row][col] && img[row][col] > 0) {
+                            isEmpty = false;
+                            break;
+                        }
+                    }
+                    if (isEmpty) {
+                        startCol = Math.max(startCol, col);
+                    } else {
+                        break;
+                    }
+                }
+
+                var endCol = img[0].length - 1;
+                for (var col = img[0].length - 1; col >= 0; col--) {
+                    var isEmpty = true;
+                    for (var row = 0; row < img.length; row++) {
+                        if (img[row][col] > 0) {
+                            isEmpty = false;
+                            break;
+                        }
+                    }
+                    if (isEmpty) {
+                        endCol = Math.min(endCol, col);
+                    } else {
+                        break;
+                    }
+                }
+
+                img.splice(endRow, img.length - endRow);
+                img.splice(0, startRow);
+                for (var i = 0; i < img.length; i++) {
+                    img[i].splice(endCol, img[i].length - endCol);
+                    img[i].splice(0, startCol);
+                }
+
+                // add whitespaces
+                var height = img.length,
+                    width = img[0].length;
+
+                for (var i = 0; i < height; i++) {
+                    img[i] = [0].concat(img[i]);
+                    img[i].push(0);
+                }
+
+                var arr = [];
+                for (var i = 0; i < width + 2; i++) {
+                    arr.push(0);
+                }
+                img = [arr].concat(img);
+                img.push(arr);
+
+                return img;
+            },
+            lookForTouches = function(imageData) {
+                var bw = getBW(imageData),
                     whiteCoords = [];
 
-                iterateImage(bw, 320, 240, function(v, row, col) {
+                logImage(bw);
+                iterateImage(bw, width, height, function(v, row, col) {
                     if (v > 250) {
                         whiteCoords.push({ row: row, col: col });
                     }
@@ -60,51 +193,121 @@
                 };
                 return result;
             },
-
             getBW = function(imageData) {
-                jsfeat.imgproc.grayscale(imageData.data, 320, 240, img_u8);
+                jsfeat.imgproc.grayscale(imageData.data, width, height, img_u8);
 
-                jsfeat.imgproc.box_blur_gray(img_u8, img_u8, 4);
-                jsfeat.imgproc.canny(img_u8, img_u8, 100, 70);
+                //jsfeat.imgproc.box_blur_gray(img_u8, img_u8, 3);
+                //jsfeat.imgproc.equalize_histogram(img_u8, img_u8);
+                //jsfeat.imgproc.canny(img_u8, img_u8, 100, 70);
                 //jsfeat.imgproc.sobel_derivatives(img_u8, img_gxgy);
+                //jsfeat.imgproc.scharr_derivatives(img_u8, img_gxgy);
 
-                var data_u32 = new Uint32Array(imageData.data.buffer);
+                /*var data_u32 = new Uint32Array(imageData.data.buffer);
                 var alpha = (0xff << 24);
                 var i = img_u8.cols*img_u8.rows, pix = 0;
                 while(--i >= 0) {
                     pix = img_u8.data[i];
                     data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
-                }
+                }*/
 
+                /*var data_u32 = new Uint32Array(imageData.data.buffer);
+                var alpha = (0xff << 24);
+                var i = img_u8.cols*img_u8.rows, pix=0, gx = 0, gy = 0;
+                while(--i >= 0) {
+                    gx = Math.abs(img_gxgy.data[i<<1]>>2)&0xff;
+                    gy = Math.abs(img_gxgy.data[(i<<1)+1]>>2)&0xff;
+                    pix = ((gx + gy)>>1)&0xff;
+                    data_u32[i] = (pix << 24) | (gx << 16) | (0 << 8) | gy;
+                }*/
                 ctx.putImageData(imageData, 0, 0);
 
+                var limit = 110;
+                var data = imageData.data;
+                for (var i = 0; i < data.length; i+=4) {
+                    if (data[i] > limit && data[i + 1] > limit && data[i + 2] > limit) {
+                        data[i] = data[i + 1] = data[i + 2] = 255;
+                    }
+                }
+
                 var imgBw = [],
-                        v, size = imageData.data.length;
-                for (var i = 0; i < size/4; i++) {
-                    //v = imageData.data[i] + imageData.data[i + 1] + imageData.data[i + 2] < 10 ? 0 : 255;
-                    v = Math.round((imageData.data[i] + imageData.data[i + 1] + imageData.data[i + 2])/3);
-                    imgBw.push(v);
+                        v, size = imageData.data.length,
+                        row = 0, col = 0;
+
+                imgBw[0] = [];
+                for (var i = 0; i < size; i++) {
+                    row = Math.floor(Math.round(i/4)/width);
+                    v = Math.round((imageData.data[i] + imageData.data[i + 1] + imageData.data[i + 2])/3) > 140 ? 0 : 1;
+                    imgBw[row][col] = v;
                     i += 3;
+                    col++;
+                    if (col >= width && i < size - 1) {
+                        row++;
+                        imgBw[row] = [];
+                        col = 0;
+                    }
                 }
                 return imgBw;
+            },
+            buttons = [],
+            findButtons = function() {
+                var imageData = takePicture();
+                var imgBw = getBW(imageData);
+                //imgBw = cropWhite(imgBw);
+                imgBw.splice(imgBw.length - 10);
+                logImage(imgBw);
+
+                var button = findShape(imgBw);
+
+                console.log(button);
+                touchElement.style.top = button[0][0] + "px";
+                touchElement.style.left = button[0][1] + "px";
+                touchElement.style.height = (button[1][0] - button[0][0]) + "px";
+                touchElement.style.width = (button[1][1] - button[0][1]) + "px";
+                /*touchElement.style.height = (button[0][1] - button[0][0]) + "px";*/
+
+                //console.log("It's time to find!!");
+            },
+            findClick = function() {
+                var imageData = takePicture();
+                var imgBw = getBW(imageData);
+
             };
 
         return {
-            getBw: getBW,
-            lookForTouches: lookForTouches
+            findButtons: findButtons,
+            findClick: findClick
+            /*getBw: getBW,
+
+            lookForTouches: lookForTouches,*/
+
         };
     })();
 
+    var touchElement = document.getElementById("touch"),
+        touchLog = document.getElementById("touchLog");
     var streaming = (function() {
         var socket = io(),
             timer = null,
-            sendScreenshot = function() {
-                var imageData;
-                ctx.drawImage(video, 0, 0, 320, 240);
-                imageData = ctx.getImageData(0, 0, 320, 240);
-                var imgBw = processor.getBw(imageData);
 
-                socket.emit("video", imgBw.join(","));
+            sendScreenshot = function() {
+                processor.findButtons();
+                //var touch = processor.lookForTouches(imageData);
+
+                /*if (touch.min.col === Infinity) {
+                    touchElement.style.display = "none";
+                } else {
+                    touchElement.style.display = "block";
+                    touchElement.style.left = touch.min.col + "px";
+                    touchElement.style.top = touch.min.row + "px";
+                    touchElement.style.width = (touch.max.col - touch.min.col) + "px";
+                    touchElement.style.height = (touch.max.row - touch.min.row) + "px";
+                    touchLog.innerHTML = ("(" + touch.min.col + ", " + touch.min.row + ") (" + touch.max.col + ", " + touch.max.row + ")");
+                }*/
+
+                /*socket.emit("video", imgBw.join(","));*/
+            },
+            next = function() {
+                sendScreenshot();
             },
             start = function() {
                 timer = window.setInterval(sendScreenshot, 20);
@@ -114,10 +317,15 @@
                     window.clearInterval(timer);
                     timer = null;
                 }
+            },
+            findButtons = function() {
+                processor.findButtons();
             };
         return {
             start: start,
-            stop: stop
+            stop: stop,
+            next: next,
+            findButtons: findButtons
         };
     })();
 
@@ -134,14 +342,15 @@
         }, function (error) {});
     } else {
         var source = document.createElement("source");
-        source.setAttribute("src", "video/VID_20141018_030347.mp4");
+        //source.setAttribute("src", "video/VID_20141018_030347.mp4");
+        source.setAttribute("src", "video/VID_20141018_182014.mp4");
         source.setAttribute("type", "video/mp4");
         video.appendChild(source);
         setTimeout(function() {
             video.play();
         }, 500);
     }
-
+    document.getElementById("findButtons").addEventListener("click", streaming.findButtons, false);
     video.addEventListener('loadeddata', streaming.start);
 </script>
 </body>

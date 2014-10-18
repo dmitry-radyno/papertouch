@@ -4,15 +4,13 @@ var express = require('express'),
     io = require('socket.io')(http);
 
 app.use("/video", express.static(__dirname + '/video'));
+app.use("/scripts", express.static(__dirname + '/scripts'));
 
 app.get('/', function(req, res){
     res.sendFile(__dirname + '/index.html');
 });
 app.get('/preview', function(req, res){
     res.sendFile(__dirname + '/preview.html');
-});
-app.get('/scripts/jsfeat.js', function(req, res){
-    res.sendFile(__dirname + '/scripts/jsfeat.js');
 });
 
 io.on('connection', function(socket){

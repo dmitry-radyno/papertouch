@@ -1,8 +1,8 @@
+/*
 
+var buttons = {};*/
 
-var buttons = {};
-
-window.onload = function(){
+/*window.onload = function(){
   var button = document.getElementById('button');
   var printButton = document.getElementById('print-button');
   var input = document.getElementById('input');
@@ -21,42 +21,39 @@ window.onload = function(){
     printButton.addEventListener('click',function(){
         printImage(testData);
     });
-};
+};*/
 
 function printImage(image){
     var body = document.body;
     for (var i = 0; i < image.length; i++){
-        for(var j = 0; j < image[i].length; j++){
-            console.log(i + ";" + j);
-            if(image[i][j] === 1) {
-                $('body').append('<div style="top:' + 10 * i + 'px;left:' + 10 * j + 'px"></div>');
-            }
-        }
+            /*console.log(i + ";" + j);*/
+        document.body.innerHTML += '<div class="px" style="top:' + 10 * image[0] + 'px;left:' + 10 * image[1] + 'px"></div>';
     }
 }
 
 function createTouchRect(shape){
-    var minX = shape[0];
-    var maxX = shape[0];
-    var minY = shape[0];
-    var maxY = shape[0];
+    var minX = Infinity;
+    var maxX = -1;
+    var minY = Infinity;
+    var maxY = -1;
 
     for(var i = 0; i<shape.length; i++){
-        if(shape[i][0] < minX[0]) {
-            minX = shape[i]
+        if(shape[i][0] < minX) {
+            minX = shape[i][0];
         }
-        if(shape[i][0] > maxX[0]) {
-            maxX = shape[i]
+        if(shape[i][0] > maxX) {
+            maxX = shape[i][0]
         }
-        if(shape[i][1] < minY[1]) {
-            minY = shape[i];
+        if(shape[i][1] < minY) {
+            minY = shape[i][1];
         }
-        if(shape[i][1] > maxY[1]){
-            minY = shape[i];
+        if(shape[i][1] > maxY){
+            maxY = shape[i][1];
         }
     }
 
-    var rect = [[minX[0],minY[1]],[minX[0],maxY[1]],[maxX[0],maxY[1]],[maxX[0],minY[1]]];
+    var rect = [[minX, minY], [maxX, maxY]];
+    //var rect = [[minX[0],minY[1]],[minX[0],maxY[1]],[maxX[0],maxY[1]],[maxX[0],minY[1]]];
 
     return rect;
 
@@ -83,7 +80,7 @@ function findShape(data){
     while(true){
         if(image[curX][curY] === 1) {
             shape.push([curX,curY]);
-            console.log('Black pixel' + [curX,curY]);
+            /*console.log('Black pixel' + [curX,curY]);*/
             image[curX][curY]+=1;
         }
 
@@ -97,7 +94,8 @@ function findShape(data){
             break;
         }
     }
-    return shape;
+    //printImage(shape);
+    return createTouchRect(shape);
 }
 
 function chooseNextStep(prevX,prevY,curX,curY,direction){
