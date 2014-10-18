@@ -109,7 +109,7 @@ function findShape(data,buttonID){
     buttons[buttonID] ={
         rect:buttonRect
     };
-    buttonMonitoring(buttonID);
+    buttonMonitoring(buttonID,image);
     return buttonRect;
 }
 
@@ -220,48 +220,50 @@ function findBoundaryPixel(image){
     }
 }
 
-function buttonMonitoring(buttonID){
+function buttonMonitoring(buttonID,image){
     var button = buttons[buttonID];
     var event = false;
     var rect = button.rect;
-    if(!button.monitoring == true) {
-        button.interval = setInterval(function () {
-            if(hasTouch(rect) && !event){
+
+
+            if(hasTouch(rect,image) && !event){
                 alert('Event');
                 event = true;
                 setTimeout(function(){
                     event = false;
                 },500)
             }
-        }, 1000);
-        buttons[buttonID].monitoring = true;
-    }
+
 }
 
-function hasTouch(rect){
+function hasTouch(rect,image){
     var range = 2;
     var trustCount = 3;
-
-    for(var i = rect[0][0]; i < rect[1][0]; i+=5){
-        for(var j = rect[0][1]; j < rect[1][1]; j++){
-            if(rect[i][j] === 1){
-                for(var z = i+1; z<i+trustCount; i++ ){
-                    console.log('loop1s');
-                    var trusted = false;
-                    for(var x = j+range; x > j-range; j--){
-                        console.log('loop2');
-                        if(rect[z][x] === 1){
-                            trusted = true;
+    var touchTimer;
+    if(touchTimer) {
+        clearTimeout(touchTimer);
+    }
+    touchTimer = setTimeout(function() {
+        console.info('TOUCHED');
+        for (var i = rect[0][0]; i < rect[1][0]; i += 5) {
+            for (var j = rect[0][1]; j < rect[1][1]; j++) {
+                if (image[i][j] === 1) {
+                    for (var z = i + 1; z < i + trustCount; i++) {
+                        var trusted = false;
+                        for (var x = j + range; x > j - range; j--) {
+                            if (image[z][x] === 1) {
+                                trusted = true;
+                            }
+                        }
+                        if (!trusted) {
+                            return false;
                         }
                     }
-                    if(!trusted){
-                        return false;
-                    }
                 }
+                return true;
             }
-            return true;
         }
-    }
+    },500);
 }
 
 
