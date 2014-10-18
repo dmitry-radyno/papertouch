@@ -226,9 +226,9 @@ function buttonMonitoring(buttonID){
     if(!button.monitoring == true) {
         button.interval = setInterval(function () {
             if(hasTouch(rect)){
-                console.log('Button ' + buttonID + 'is touched');
+                alert('Event');
             }
-        }, 1000);
+        }, 10000);
         buttons[buttonID].monitoring = true;
     }
 }
@@ -237,12 +237,14 @@ function hasTouch(rect){
     var range = 2;
     var trustCount = 3;
 
-    for(var i = rect[0][0]; i < rect[1][0]; i+5){
+    for(var i = rect[0][0]; i < rect[1][0]; i+=5){
         for(var j = rect[0][1]; j < rect[1][1]; j++){
             if(rect[i][j] === 1){
                 for(var z = i+1; z<i+trustCount; i++ ){
+                    console.log('loop1s');
                     var trusted = false;
                     for(var x = j+range; x > j-range; j--){
+                        console.log('loop2');
                         if(rect[z][x] === 1){
                             trusted = true;
                         }
