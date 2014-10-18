@@ -69,6 +69,9 @@ function findShape(data){
 
 
     var boundaryPixel = findBoundaryPixel(image);
+    if (!boundaryPixel) {
+        return null;
+    }
     var startX = boundaryPixel.white[0];
     var startY = boundaryPixel.white[1];
 
@@ -76,15 +79,18 @@ function findShape(data){
     var prevY = startY;
     var curX = boundaryPixel.black[0];
     var curY = boundaryPixel.black[1];
+    var iterates = 0;
 
     while(true){
-        if(image[curX][curY] === 1) {
+        /*if (!image[curX] || typeof(image[curY]) === "undefined") {
+            return null;
+        }*/
+        if(image[curX] && image[curX][curY] === 1) {
             shape.push([curX,curY]);
-            /*console.log('Black pixel' + [curX,curY]);*/
             image[curX][curY]+=1;
         }
 
-        var nexts = chooseNextStep(prevX,prevY,curX,curY,image[curX][curY]);
+        var nexts = chooseNextStep(prevX,prevY,curX,curY,image[curX] ? image[curX][curY] || 0 : 0);
         prevX = curX;
         prevY = curY;
         curX = nexts[0];
@@ -93,9 +99,67 @@ function findShape(data){
         if(curX === startX && curY === startY){
             break;
         }
+        iterates++;
+        if (iterates > 5000) {
+            return null;
+        }
     }
     //printImage(shape);
     return createTouchRect(shape);
+}
+
+function findShapes(data) {
+    var subtract = function(data, button) {
+            for (var row = button[0][0]; row <= button[1][0]; row++) {
+                for (var col = button[0][1]; col <= button[1][1]; col++) {
+                    if (data[row]) {
+                        data[row][col] = 0;
+                    }
+                }
+            }
+            return data;
+        },
+        isFilled = function(data) {
+            var filled = 0,
+                height = data.length,
+                width = data[0] ? data[0].length : 0;
+            for (var i = 0; i < height; i++) {
+                for (var j = 0; j < width; j++) {
+                    filled += data[i][j] ? 1 : 0;
+                }
+            }
+            return filled/(width*height) > 0.3;
+        },
+        isEmpty = function(data) {
+            for (var i = 0; i < data.length; i++) {
+                for (var j = 0; j < data[i].length; j++) {
+                    if (data[i][j]) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        },
+        isButton = function(button) {
+            var minSize = 30;
+            return (button[1][0] - button[0][0] > minSize) && (button[1][1] - button[0][1] > minSize);
+        };
+    var found = true,
+        button = null,
+        buttons = [];
+    while (!isEmpty(data) && !isFilled(data) && found && buttons.length < 4) {
+        button = findShape(data);
+        if (button) {
+            if (isButton(button)) {
+                buttons.push(button);
+            }
+            data = subtract(data, button);
+            //log(data);
+        } else {
+            found = false;
+        }
+    }
+    return buttons;
 }
 
 function chooseNextStep(prevX,prevY,curX,curY,direction){

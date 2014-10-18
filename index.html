@@ -5,7 +5,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font: 13px Helvetica, Arial; }
-        #touch {
+        .button {
             position: absolute;
             border: 1px solid #00ff00;
         }
@@ -35,7 +35,17 @@
     <script type="text/javascript" src="scripts/alg.js"></script>
 </head>
 <body>
-<div id="touch"></div>
+<div id="button1" class="button"></div>
+<div id="button2" class="button"></div>
+<div id="button3" class="button"></div>
+<div id="button4" class="button"></div>
+<div id="button5" class="button"></div>
+<div id="button6" class="button"></div>
+<div id="button7" class="button"></div>
+<div id="button8" class="button"></div>
+<div id="button9" class="button"></div>
+<div id="button10" class="button"></div>
+
 <div id="touchLog"></div>
 <div id="imageLog"></div>
 <video id="webcam" width="320" height="240" loop muted style="display: none;"></video>
@@ -167,7 +177,7 @@
                 var bw = getBW(imageData),
                     whiteCoords = [];
 
-                logImage(bw);
+                //logImage(bw);
                 iterateImage(bw, width, height, function(v, row, col) {
                     if (v > 250) {
                         whiteCoords.push({ row: row, col: col });
@@ -221,7 +231,7 @@
                 }*/
                 ctx.putImageData(imageData, 0, 0);
 
-                var limit = 110;
+                var limit = 70;
                 var data = imageData.data;
                 for (var i = 0; i < data.length; i+=4) {
                     if (data[i] > limit && data[i + 1] > limit && data[i + 2] > limit) {
@@ -236,7 +246,7 @@
                 imgBw[0] = [];
                 for (var i = 0; i < size; i++) {
                     row = Math.floor(Math.round(i/4)/width);
-                    v = Math.round((imageData.data[i] + imageData.data[i + 1] + imageData.data[i + 2])/3) > 140 ? 0 : 1;
+                    v = Math.round((imageData.data[i] + imageData.data[i + 1] + imageData.data[i + 2])/3) > 200 ? 0 : 1;
                     imgBw[row][col] = v;
                     i += 3;
                     col++;
@@ -254,23 +264,30 @@
                 var imgBw = getBW(imageData);
                 //imgBw = cropWhite(imgBw);
                 imgBw.splice(imgBw.length - 10);
-                logImage(imgBw);
+                //logImage(imgBw);
 
-                var button = findShape(imgBw);
+                var buttons = findShapes(imgBw),
+                    button,
+                    touchElement;
+                //console.log(buttons);
 
-                console.log(button);
-                touchElement.style.top = button[0][0] + "px";
-                touchElement.style.left = button[0][1] + "px";
-                touchElement.style.height = (button[1][0] - button[0][0]) + "px";
-                touchElement.style.width = (button[1][1] - button[0][1]) + "px";
-                /*touchElement.style.height = (button[0][1] - button[0][0]) + "px";*/
-
-                //console.log("It's time to find!!");
+                for (var i = 0; i < buttonElements.length; i++) {
+                    touchElement = buttonElements[i];
+                    if (buttons[i]) {
+                        button = buttons[i];
+                        touchElement.style.top = button[0][0] + "px";
+                        touchElement.style.left = button[0][1] + "px";
+                        touchElement.style.height = (button[1][0] - button[0][0]) + "px";
+                        touchElement.style.width = (button[1][1] - button[0][1]) + "px";
+                        touchElement.style.display = "block";
+                    } else {
+                        touchElement.style.display = "none";
+                    }
+                }
             },
             findClick = function() {
                 var imageData = takePicture();
-                var imgBw = getBW(imageData);
-
+                //var imgBw = getBW(imageData);
             };
 
         return {
@@ -283,6 +300,10 @@
         };
     })();
 
+    var buttonElements = [];
+    for (var i = 1; i < 10; i++) {
+        buttonElements.push(document.getElementById("button" + i));
+    }
     var touchElement = document.getElementById("touch"),
         touchLog = document.getElementById("touchLog");
     var streaming = (function() {
@@ -291,7 +312,7 @@
 
             sendScreenshot = function() {
                 processor.findButtons();
-                //var touch = processor.lookForTouches(imageData);
+                //var touch = processor.findClick();
 
                 /*if (touch.min.col === Infinity) {
                     touchElement.style.display = "none";
@@ -329,7 +350,7 @@
         };
     })();
 
-    if (0) {
+    if (1) {
         window.navigator.webkitGetUserMedia({video: true}, function(stream) {
             try {
                 video.src = window.URL.createObjectURL(stream);
@@ -343,14 +364,14 @@
     } else {
         var source = document.createElement("source");
         //source.setAttribute("src", "video/VID_20141018_030347.mp4");
-        source.setAttribute("src", "video/VID_20141018_182014.mp4");
+        source.setAttribute("src", "video/VID_20141018_220420.mp4");
         source.setAttribute("type", "video/mp4");
         video.appendChild(source);
         setTimeout(function() {
             video.play();
         }, 500);
     }
-    document.getElementById("findButtons").addEventListener("click", streaming.findButtons, false);
+    //document.getElementById("findButtons").addEventListener("click", streaming.findButtons, false);
     video.addEventListener('loadeddata', streaming.start);
 </script>
 </body>
