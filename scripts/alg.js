@@ -222,11 +222,16 @@ function findBoundaryPixel(image){
 
 function buttonMonitoring(buttonID){
     var button = buttons[buttonID];
+    var event = false;
     var rect = button.rect;
     if(!button.monitoring == true) {
         button.interval = setInterval(function () {
-            if(hasTouch(rect)){
+            if(hasTouch(rect) && !event){
                 alert('Event');
+                event = true;
+                setTimeout(function(){
+                    event = false;
+                },1000)
             }
         }, 10000);
         buttons[buttonID].monitoring = true;
