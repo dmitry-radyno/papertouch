@@ -22,7 +22,7 @@ var buttons = {};*/
         printImage(testData);
     });
 };*/
-
+var buttons = {};
 function printImage(image){
     var body = document.body;
     for (var i = 0; i < image.length; i++){
@@ -63,7 +63,7 @@ function createTouchRect(shape){
 
 
 
-function findShape(data){
+function findShape(data,buttonID){
     var shape=[];
     var image = data;
 
@@ -105,7 +105,12 @@ function findShape(data){
         }
     }
     //printImage(shape);
-    return createTouchRect(shape);
+    var buttonRect = createTouchRect(shape);
+    buttons[buttonID] ={
+        rect:buttonRect
+    };
+    buttonMonitoring(buttonID);
+    return buttonRect;
 }
 
 function findShapes(data) {
@@ -213,13 +218,45 @@ function findBoundaryPixel(image){
             prevY = j;
         }
     }
-
 }
 
-function hitTheButton(x,y){
-
-
+function buttonMonitoring(buttonID){
+    var button = buttons[buttonID];
+    var rect = button.rect;
+    if(!button.monitoring == true) {
+        button.interval = setInterval(function () {
+            if(hasTouch(rect)){
+                console.log('Button ' + buttonID + 'is touched');
+            }
+        }, 1000);
+        buttons[buttonID].monitoring = true;
+    }
 }
+
+function hasTouch(rect){
+    var range = 2;
+    var trustCount = 3;
+
+    for(var i = rect[0][0]; i < rect[1][0]; i+5){
+        for(var j = rect[0][1]; j < rect[1][1]; j++){
+            if(rect[i][j] === 1){
+                for(var z = i+1; z<i+trustCount; i++ ){
+                    var trusted = false;
+                    for(var x = j+range; x > j-range; j--){
+                        if(rect[z][x] === 1){
+                            trusted = true;
+                        }
+                    }
+                    if(!trusted){
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+    }
+}
+
 
 
 
