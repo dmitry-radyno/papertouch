@@ -52,7 +52,7 @@ function createTouchRect(shape){
         }
     }
 
-    var rect = [[minX, minY], [maxX, maxY]];
+    var rect = [[minX+10, minY+10], [maxX-10, maxY-10]];
     //var rect = [[minX[0],minY[1]],[minX[0],maxY[1]],[maxX[0],maxY[1]],[maxX[0],minY[1]]];
 
     return rect;
@@ -231,9 +231,9 @@ function buttonMonitoring(buttonID){
                 event = true;
                 setTimeout(function(){
                     event = false;
-                },1000)
+                },500)
             }
-        }, 10000);
+        }, 1000);
         buttons[buttonID].monitoring = true;
     }
 }
