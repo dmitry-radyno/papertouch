@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+    <title>Socket.IO chat</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font: 13px Helvetica, Arial; }
+    </style>
+
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+<canvas id="canvas" width="320" height="240"></canvas>
+
+<script>
+    var canvas = document.getElementById('canvas'),
+        ctx = canvas.getContext('2d'),
+        socket = io();
+
+    socket.on("video", function(data) {
+        console.log("event");
+        var imageData = ctx.getImageData(0, 0, 320, 240);
+        data = data.split(",");
+        for (var i = 0; i < data.length; i++) {
+            imageData.data[i*4] = data[i];
+            imageData.data[i*4 + 1] = data[i];
+            imageData.data[i*4 + 2] = data[i];
+            imageData.data[i*4 + 3] = 255;
+        }
+        ctx.putImageData(imageData, 0, 0);
+    });
+</script>
+</body>
+</html>

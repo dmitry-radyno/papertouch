@@ -1,0 +1,148 @@
+<!doctype html>
+<html>
+<head>
+    <title>Socket.IO chat</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font: 13px Helvetica, Arial; }
+    </style>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="text/javascript" src="scripts/jsfeat.js"></script>
+</head>
+<body>
+<video id="webcam" width="320" height="240" loop muted style="display: none;"></video>
+<canvas id="canvas" width="320" height="240"></canvas>
+
+<script>
+    var video = document.getElementById('webcam'),
+        canvas = document.getElementById('canvas'),
+        ctx = canvas.getContext('2d');
+
+    var processor = (function() {
+        var img_u8 = new jsfeat.matrix_t(320, 240, jsfeat.U8C1_t),
+            img_gxgy = new jsfeat.matrix_t(320, 240, jsfeat.S32C2_t),
+            iterateImage = function(data, width, height, callback) {
+                var row, col, index;
+                for (row = 0; row < height; row++) {
+                    for (col = 0; col < width; col++) {
+                        index = (row * width + col);
+                        callback(data[index], row, col);
+                    }
+                }
+            },
+            lookForTouches = function() {
+                var bw = getBW(),
+                    whiteCoords = [];
+
+                iterateImage(bw, 320, 240, function(v, row, col) {
+                    if (v > 250) {
+                        whiteCoords.push({ row: row, col: col });
+                    }
+                });
+                var minRow = Infinity, maxRow = -1, minCol = Infinity, maxCol = -1;
+                for (var i = 0; i < whiteCoords.length; i++) {
+                    minRow = Math.min(minRow, whiteCoords[i].row);
+                    minCol = Math.min(minCol, whiteCoords[i].col);
+                    maxRow = Math.max(maxRow, whiteCoords[i].row);
+                    maxCol = Math.max(maxCol, whiteCoords[i].col);
+                }
+
+                var result = {
+                    min: {
+                        row: minRow,
+                        col: minCol
+                    },
+                    max: {
+                        row: maxRow,
+                        col: maxCol
+                    }
+                };
+                return result;
+            },
+
+            getBW = function(imageData) {
+                jsfeat.imgproc.grayscale(imageData.data, 320, 240, img_u8);
+
+                jsfeat.imgproc.box_blur_gray(img_u8, img_u8, 4);
+                jsfeat.imgproc.canny(img_u8, img_u8, 100, 70);
+                //jsfeat.imgproc.sobel_derivatives(img_u8, img_gxgy);
+
+                var data_u32 = new Uint32Array(imageData.data.buffer);
+                var alpha = (0xff << 24);
+                var i = img_u8.cols*img_u8.rows, pix = 0;
+                while(--i >= 0) {
+                    pix = img_u8.data[i];
+                    data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+
+                var imgBw = [],
+                        v, size = imageData.data.length;
+                for (var i = 0; i < size/4; i++) {
+                    //v = imageData.data[i] + imageData.data[i + 1] + imageData.data[i + 2] < 10 ? 0 : 255;
+                    v = Math.round((imageData.data[i] + imageData.data[i + 1] + imageData.data[i + 2])/3);
+                    imgBw.push(v);
+                    i += 3;
+                }
+                return imgBw;
+            };
+
+        return {
+            getBw: getBW,
+            lookForTouches: lookForTouches
+        };
+    })();
+
+    var streaming = (function() {
+        var socket = io(),
+            timer = null,
+            sendScreenshot = function() {
+                var imageData;
+                ctx.drawImage(video, 0, 0, 320, 240);
+                imageData = ctx.getImageData(0, 0, 320, 240);
+                var imgBw = processor.getBw(imageData);
+
+                socket.emit("video", imgBw.join(","));
+            },
+            start = function() {
+                timer = window.setInterval(sendScreenshot, 20);
+            },
+            stop = function() {
+                if (timer) {
+                    window.clearInterval(timer);
+                    timer = null;
+                }
+            };
+        return {
+            start: start,
+            stop: stop
+        };
+    })();
+
+    if (0) {
+        window.navigator.webkitGetUserMedia({video: true}, function(stream) {
+            try {
+                video.src = window.URL.createObjectURL(stream);
+            } catch (error) {
+                video.src = stream;
+            }
+            setTimeout(function() {
+                video.play();
+            }, 500);
+        }, function (error) {});
+    } else {
+        var source = document.createElement("source");
+        source.setAttribute("src", "video/VID_20141018_030347.mp4");
+        source.setAttribute("type", "video/mp4");
+        video.appendChild(source);
+        setTimeout(function() {
+            video.play();
+        }, 500);
+    }
+
+    video.addEventListener('loadeddata', streaming.start);
+</script>
+</body>
+</html>

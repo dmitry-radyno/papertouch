@@ -1,0 +1,9 @@
+{
+  "name": "papertouch",
+  "version": "0.0.1",
+  "description": "Simple touch detector",
+  "dependencies": {
+    "express": "^4.9.7",
+    "socket.io": "^1.1.0"
+  }
+}
