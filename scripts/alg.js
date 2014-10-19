@@ -152,7 +152,7 @@ function findShapes(data, existingButtons) {
             return true;
         },
         isButton = function(button) {
-            var minSize = 20;
+            var minSize = 10;
             return (button[1][0] - button[0][0] > minSize) && (button[1][1] - button[0][1] > minSize);
         },
         getButtonHash = function(data, button) {
@@ -201,7 +201,7 @@ function findShapes(data, existingButtons) {
             data = subtract(data, button);
         }
     }
-    while (!isEmpty(data) && !isFilled(data) && found && buttons.length < 5) {
+    while (!isEmpty(data) && !isFilled(data) && found && buttons.length < 8) {
         button = findShape(data);
         if (button) {
             if (isButton(button)) {

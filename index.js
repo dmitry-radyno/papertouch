@@ -5,6 +5,7 @@ var express = require('express'),
 
 app.use("/video", express.static(__dirname + '/video'));
 app.use("/scripts", express.static(__dirname + '/scripts'));
+app.use("/demo", express.static(__dirname + '/demo'));
 
 app.get('/detector', function(req, res){
     res.sendFile(__dirname + '/index.html');
@@ -14,9 +15,9 @@ app.get('/preview', function(req, res){
 });
 
 io.on('connection', function(socket){
-    console.log('a user connected');
-    socket.on('video', function(imageData){
-        socket.broadcast.emit("video", imageData);
+    socket.on('touch', function(data){
+        console.log(data);
+        socket.broadcast.emit("touch", data);
     });
 });
 

@@ -202,14 +202,7 @@
                         col: maxCol
                     }
                 };
-                return result;
-            },
-            getBW = function(imageData, blackLimit) {
-                jsfeat.imgproc.grayscale(imageData.data, width, height, img_u8);
-
-                //jsfeat.imgproc.box_blur_gray(img_u8, img_u8, 3);
-                //jsfeat.imgproc.equalize_histogram(img_u8, img_u8);
-                //jsfeat.imgproc.canny(img_u8, img_u8, 100, 70);
+                return result;fny(img_u8, img_u8, 100, 70);
                 //jsfeat.imgproc.sobel_derivatives(img_u8, img_gxgy);
                 //jsfeat.imgproc.scharr_derivatives(img_u8, img_gxgy);
 
@@ -307,17 +300,31 @@
 
                 //logImage(imgBw);
                 touchButtonLog.innerHTML = "";
+                var touches = [];
                 for (var i = 0; i < buttons.length; i++) {
                     hash = getButtonHash(imgBw, buttons[i].coords);
 
                     if (hash - buttons[i].sum > 100) {
                         found = true;
                         touchButtonLog.innerHTML = "touch: " + buttons[i].id + " (" + (hash - buttons[i].sum) + ")<br>";
+                        touches.push({
+                            id: buttons[i].id,
+                            hash: hash - buttons[i].sum
+                        });
+                        //return { id: buttons[i].id };
                     } else {
                         if (!found) {
                             touchButtonLog.innerHTML = hash - buttons[i].sum;//"touch: " + buttons[i].id + "<br>";
                         }
                     }
+                }
+                touches = touches.sort(function(touch1, touch2) {
+                    return touch1.hash > touch2.hash ? 1 : -1;
+                });
+                if (touches.length > 0) {
+                    return touches[0];
+                } else {
+                    return null;
                 }
             };
 
@@ -343,21 +350,12 @@
             timer = null,
 
             sendScreenshot = function() {
-                processor.findClick();
-                //processor.findButtons();
-
-                /*if (touch.min.col === Infinity) {
-                    touchElement.style.display = "none";
-                } else {
-                    touchElement.style.display = "block";
-                    touchElement.style.left = touch.min.col + "px";
-                    touchElement.style.top = touch.min.row + "px";
-                    touchElement.style.width = (touch.max.col - touch.min.col) + "px";
-                    touchElement.style.height = (touch.max.row - touch.min.row) + "px";
-                    touchLog.innerHTML = ("(" + touch.min.col + ", " + touch.min.row + ") (" + touch.max.col + ", " + touch.max.row + ")");
-                }*/
-
-                /*socket.emit("video", imgBw.join(","));*/
+                var click = processor.findClick();
+                if (click) {
+                    socket.emit("touch", JSON.stringify({
+                        button: click
+                    }));
+                }
             },
             next = function() {
                 sendScreenshot();

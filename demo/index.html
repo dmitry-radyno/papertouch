@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+
+
+    <link rel="stylesheet" href="./public/stylesheets/snake.css"/>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="./public/javascripts/jquery.min.js"></script>
+    <script src="./public/javascripts/snake.js"></script>
+    <script src="./public/javascripts/sockets.js">
+
+    </script>
+</head>
+
+<body>
+
+
+<div id="game-area" tabindex="0"></div>
+
+<script type="text/javascript">
+    var mySnakeBoard = new SNAKE.Board(  {
+        boardContainer: "game-area",
+        fullScreen: true
+    });
+</script>
+
+</body>
+</html>
