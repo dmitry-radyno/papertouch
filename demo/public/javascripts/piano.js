@@ -1,19 +1,15 @@
 var socket = io('http://localhost:8081');
 
-socket.on('pianoKey',function(button){
-    console.log('Hello');
-    socketPlay(button);
 
-});
 
 var eventListener = (function() {
     var callbacks = {},
         attachEvent = function(name, handler) {
             callbacks[name] = handler;
         },
-        fireEvent = function(name) {
+        fireEvent = function(name, arg) {
             if (callbacks[name]) {
-                callbacks[name]();
+                callbacks[name](arg);
             }
         };
     return {
@@ -22,6 +18,9 @@ var eventListener = (function() {
     };
 })();
 
+socket.on('touch',function(button){
+    eventListener.fireEvent("pianoKey",button);
+});
 
 window.onload = function() {
     var width = 2000, octave = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#'], id = "", div, whitekeys = 0, keys = [], context = window.AudioContext ? new AudioContext() : new webkitAudioContext();
@@ -41,7 +40,7 @@ window.onload = function() {
         }
     }
     document.body.addEventListener('click', play);
-}
+
     function play(e) {
         e.target.style.background = 'gray';
         var controctave = { 'C': 32.703, 'Cs': 34.648, 'D': 36.708, 'Ds': 38.891, 'E': 41.203, 'F': 43.654, 'Fs': 46.249, 'G': 48.999, 'Gs': 51.913, 'A': 55, 'As': 58.27, 'B': 61.735}, osc = context.createOscillator();
@@ -55,10 +54,19 @@ window.onload = function() {
             e.target.style.background = 'white';
         }, 1000 / 2);
     }
+
+    eventListener.on('pianoKey',function(button){
+        socketPlay(button);
+    });
+    var timer = null;
+    var oscOld = null;
     function socketPlay(button) {
-        var buttonID = JSON.parse(button).id;
+        if (timer) {
+            return;
+        }
+        var buttonID = JSON.parse(button).button.id;
         var keyID;
-        switch(buttonID){
+        switch (buttonID) {
             case 1:
                 keyID = "A3";
                 break;
@@ -71,19 +79,39 @@ window.onload = function() {
                 keyID = "D4";
         }
         var key = document.getElementById(keyID);
-        if(key === undefined){
+        if (!key) {
             return;
         }
+        if (timer) {
+            window.clearTimeout(timer);
+            timer = null;
+
+            if (oscOld) {
+                oscOld.stop(0);
+                key.style.background = 'white';
+                oscOld.disconnect(context.destination);
+            }
+            oscOld = null;
+        }
         key.style.background = 'gray';
-        var controctave = { 'C': 32.703, 'Cs': 34.648, 'D': 36.708, 'Ds': 38.891, 'E': 41.203, 'F': 43.654, 'Fs': 46.249, 'G': 48.999, 'Gs': 51.913, 'A': 55, 'As': 58.27, 'B': 61.735}, osc = context.createOscillator();
+        var controctave = { 'C': 32.703, 'Cs': 34.648, 'D': 36.708, 'Ds': 38.891, 'E': 41.203, 'F': 43.654, 'Fs': 46.249, 'G': 48.999, 'Gs': 51.913, 'A': 55, 'As': 58.27, 'B': 61.735}, osc;
+        if (1 || !oscOld) {
+            osc = context.createOscillator();
+            osc.connect(context.destination);
+            osc.start(0);
+        } else {
+            osc = oscOld;
+        }
         osc.frequency.value = keyID[2] == 's' ? controctave[keyID[0] + 's'] * Math.pow(2, (keyID[1] | 0) - 1) : controctave[keyID[0]] * Math.pow(2, (keyID[1] | 0) - 1);
         osc.type = "square";
-        osc.connect(context.destination);
-        osc.start(0);
-        setTimeout(function () {
+        if (!oscOld) {
+        }
+        timer = setTimeout(function() {
             osc.stop(0);
             osc.disconnect(context.destination);
-            e.target.style.background = 'white';
-        }, 1000 / 2);
-};
-
+            key.style.background = 'white';
+            timer = null;
+        }, 400 / 2);
+        oscOld = osc;
+    };
+}

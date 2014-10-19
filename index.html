@@ -90,6 +90,38 @@
                 }
                 document.getElementById("imageLog").innerHTML = data;
             },
+            isEmptyPage = (function() {
+                var emptyTimer = null,
+                    isEmpty = function(data) {
+                        var count = 0,
+                            height = data.length,
+                            width = data[0] ? data[0].length : 0;
+
+                        for (var i = 0; i < data.length; i++) {
+                            for (var j = 0; j < data[i].length; j++) {
+                                if (data[i][j]) {
+                                    count++;
+                                }
+                            }
+                        }
+                        return count/(width*height) < 0.001;
+                    };
+                return function(data) {
+                    if (isEmpty(data)) {
+                        if (emptyTimer) {
+                            var newEmptyTimer = (new Date()).valueOf();
+                            if (newEmptyTimer - emptyTimer > 3000) {
+                                return true;
+                            }
+                        } else {
+                            emptyTimer = (new Date()).valueOf();
+                        }
+                    } else {
+                        emptyTimer = null;
+                    }
+                    return false;
+                };
+            })(),
             isEmptyRow = function(row) {
                 for (var i = 0; i < row.length; i++) {
                     if (row[i] > 0) {
@@ -202,7 +234,12 @@
                         col: maxCol
                     }
                 };
-                return result;fny(img_u8, img_u8, 100, 70);
+                return result;
+                return result;
+            },
+            getBW = function(imageData, blackLimit) {
+                jsfeat.imgproc.grayscale(imageData.data, width, height, img_u8);
+                //fny(img_u8, img_u8, 100, 70);
                 //jsfeat.imgproc.sobel_derivatives(img_u8, img_gxgy);
                 //jsfeat.imgproc.scharr_derivatives(img_u8, img_gxgy);
 
@@ -299,32 +336,37 @@
                     found = false;
 
                 //logImage(imgBw);
-                touchButtonLog.innerHTML = "";
-                var touches = [];
-                for (var i = 0; i < buttons.length; i++) {
-                    hash = getButtonHash(imgBw, buttons[i].coords);
+                if (isEmptyPage(imgBw)) {
+                    touchButtonLog.innerHTML = "WHITE PAGE";
+                    return null;
+                } else {
+                    touchButtonLog.innerHTML = "";
+                    var touches = [];
+                    for (var i = 0; i < buttons.length; i++) {
+                        hash = getButtonHash(imgBw, buttons[i].coords);
 
-                    if (hash - buttons[i].sum > 100) {
-                        found = true;
-                        touchButtonLog.innerHTML = "touch: " + buttons[i].id + " (" + (hash - buttons[i].sum) + ")<br>";
-                        touches.push({
-                            id: buttons[i].id,
-                            hash: hash - buttons[i].sum
-                        });
-                        //return { id: buttons[i].id };
-                    } else {
-                        if (!found) {
-                            touchButtonLog.innerHTML = hash - buttons[i].sum;//"touch: " + buttons[i].id + "<br>";
+                        if (hash - buttons[i].sum > 100) {
+                            found = true;
+                            touchButtonLog.innerHTML = "touch: " + buttons[i].id + " (" + (hash - buttons[i].sum) + ")<br>";
+                            touches.push({
+                                id: buttons[i].id,
+                                hash: hash - buttons[i].sum
+                            });
+                            //return { id: buttons[i].id };
+                        } else {
+                            if (!found) {
+                                touchButtonLog.innerHTML = hash - buttons[i].sum;//"touch: " + buttons[i].id + "<br>";
+                            }
                         }
                     }
-                }
-                touches = touches.sort(function(touch1, touch2) {
-                    return touch1.hash > touch2.hash ? 1 : -1;
-                });
-                if (touches.length > 0) {
-                    return touches[0];
-                } else {
-                    return null;
+                    touches = touches.sort(function (touch1, touch2) {
+                        return touch1.hash > touch2.hash ? 1 : -1;
+                    });
+                    if (touches.length > 0) {
+                        return touches[0];
+                    } else {
+                        return null;
+                    }
                 }
             };
 

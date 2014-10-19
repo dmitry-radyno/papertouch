@@ -34,16 +34,16 @@ socket.on('touch',function(data){
     console.log(button.button.id);
     switch (button.button.id) {
         case 1:
-            eventListener.fireEvent("right");
-            break;
-        case 2:
-            eventListener.fireEvent("up");
-            break;
-        case 3:
             eventListener.fireEvent("down");
             break;
-        case 4:
+        case 2:
             eventListener.fireEvent("left");
+            break;
+        case 3:
+            eventListener.fireEvent("right");
+            break;
+        case 4:
+            eventListener.fireEvent("up");
             break;
     }
 });
