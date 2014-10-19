@@ -106,17 +106,22 @@ function findShape(data,buttonID){
     }
     //printImage(shape);
     var buttonRect = createTouchRect(shape);
-    buttons[buttonID] ={
+    /*buttons[buttonID] ={
         rect:buttonRect
     };
-    buttonMonitoring(buttonID);
+    buttonMonitoring(buttonID);*/
     return buttonRect;
 }
 
-function findShapes(data) {
+function findShapes(data, existingButtons) {
     var subtract = function(data, button) {
-            for (var row = button[0][0]; row <= button[1][0]; row++) {
-                for (var col = button[0][1]; col <= button[1][1]; col++) {
+            var x0 = Math.max(button[0][1] - 10, 0),
+                x1 = Math.min(button[1][1] + 10, data[0] ? data[0].length : 0),
+                y0 = Math.max(button[0][0] - 10, 0),
+                y1 = Math.min(button[1][0] + 10, data.length);
+
+            for (var row = y0; row <= y1; row++) {
+                for (var col = x0; col <= x1; col++) {
                     if (data[row]) {
                         data[row][col] = 0;
                     }
@@ -146,17 +151,64 @@ function findShapes(data) {
             return true;
         },
         isButton = function(button) {
-            var minSize = 30;
+            var minSize = 20;
             return (button[1][0] - button[0][0] > minSize) && (button[1][1] - button[0][1] > minSize);
-        };
+        },
+        getButtonHash = function(data, button) {
+            var sum = 0;
+            for (var row = button[0][0]; row <= button[1][0]; row++) {
+                for (var col = button[0][1]; col <= button[1][1]; col++) {
+                    if (data[row]) {
+                        sum += data[row][col];
+                    }
+                }
+            }
+            return sum;
+        },
+        cropArea = function(data, coords) {
+            var cropedData = [];
+            for (var row = coords[0][0], i = 0; row <= coords[1][0]; row++, i++) {
+                cropedData[i] = [];
+                for (var col = coords[0][1], j = 0; col <= coords[1][1]; col++, j++) {
+                    if (data[row]) {
+                        cropedData[i][j] = data[row][col] || 0;
+                    }
+                }
+            }
+            return cropedData;
+        },
+        uuid = (function() {
+            var index = 1;
+            return function() {
+                return index++;
+            }
+        })();
     var found = true,
         button = null,
         buttons = [];
-    while (!isEmpty(data) && !isFilled(data) && found && buttons.length < 4) {
+
+    for (var i = 0; i < existingButtons.length; i++) {
+        button = findShape(cropArea(data, existingButtons[i].coords));
+        if (button) {
+            if (isButton(button)) {
+                buttons.push({
+                    id: existingButtons[i].id,
+                    sum: existingButtons[i].sum,
+                    coords: button
+                });
+            }
+            data = subtract(data, button);
+        }
+    }
+    while (!isEmpty(data) && !isFilled(data) && found && buttons.length < 5) {
         button = findShape(data);
         if (button) {
             if (isButton(button)) {
-                buttons.push(button);
+                buttons.push({
+                    id: uuid(),
+                    sum: getButtonHash(data, button),
+                    coords: button
+                });
             }
             data = subtract(data, button);
             //log(data);
@@ -207,7 +259,7 @@ function findBoundaryPixel(image){
         for(var j = 0; j< image[i].length; j++){
             cur = image[i][j];
             if(cur === 1 && prev === 0){
-                console.log('Boundary pixel white'+[prevX,prevY]+' Boundary pixed dark' + [i,j] );
+                /*console.log('Boundary pixel white'+[prevX,prevY]+' Boundary pixed dark' + [i,j] );*/
                 return {
                     white:[prevX,prevY],
                     black:[i,j]
@@ -238,13 +290,13 @@ function buttonMonitoring(buttonID){
     }
 }
 
-function hasTouch(rect){
+function hasTouch(rect, data){
     var range = 2;
     var trustCount = 3;
 
     for(var i = rect[0][0]; i < rect[1][0]; i+=5){
         for(var j = rect[0][1]; j < rect[1][1]; j++){
-            if(rect[i][j] === 1){
+            if(data[i][j] === 1){
                 for(var z = i+1; z<i+trustCount; i++ ){
                     console.log('loop1s');
                     var trusted = false;

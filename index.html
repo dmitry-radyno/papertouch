@@ -11,17 +11,17 @@
         }
         #touchLog {
             position: absolute;
-            left: 400px;
+            left: 326px;
             top: 0px;
         }
         #imageLog {
             position: absolute;
-            left: 400px;
-            top: 100px;
+            left: 0px;
+            top: 350px;
             width: 400px;
             height: 400px;
             font-family: monospace;
-            font-size: 6px;
+            font-size: 4px;
         }
         .px {
             position: absolute;
@@ -35,11 +35,11 @@
     <script type="text/javascript" src="scripts/alg.js"></script>
 </head>
 <body>
-<div id="button1" class="button"></div>
-<div id="button2" class="button"></div>
-<div id="button3" class="button"></div>
-<div id="button4" class="button"></div>
-<div id="button5" class="button"></div>
+<div id="button1" class="button" style="border-color: #ff0000;"></div>
+<div id="button2" class="button" style="border-color: #00ff00;"></div>
+<div id="button3" class="button" style="border-color: #0000ff;"></div>
+<div id="button4" class="button" style="border-color: #ff00ff;"></div>
+<div id="button5" class="button" style="border-color: #ffff00;"></div>
 <div id="button6" class="button"></div>
 <div id="button7" class="button"></div>
 <div id="button8" class="button"></div>
@@ -49,8 +49,9 @@
 <div id="touchLog"></div>
 <div id="imageLog"></div>
 <video id="webcam" width="320" height="240" loop muted style="display: none;"></video>
+<div id="touchButtonLog" style="font-size: 30px; position: absolute; left: 10px; top: 4px;"></div>
 <canvas id="canvas" width="320" height="240"></canvas>
-<button id="findButtons">Find buttons</button>
+<button id="findButtons" style="width: 300px; height: 100px; font-size: 40px; display: block;">Find buttons</button>
 
 <script>
     var width = 320,
@@ -203,7 +204,7 @@
                 };
                 return result;
             },
-            getBW = function(imageData) {
+            getBW = function(imageData, blackLimit) {
                 jsfeat.imgproc.grayscale(imageData.data, width, height, img_u8);
 
                 //jsfeat.imgproc.box_blur_gray(img_u8, img_u8, 3);
@@ -231,7 +232,7 @@
                 }*/
                 ctx.putImageData(imageData, 0, 0);
 
-                var limit = 70;
+                var limit = blackLimit || 100;
                 var data = imageData.data;
                 for (var i = 0; i < data.length; i+=4) {
                     if (data[i] > limit && data[i + 1] > limit && data[i + 2] > limit) {
@@ -263,31 +264,61 @@
                 var imageData = takePicture();
                 var imgBw = getBW(imageData);
                 //imgBw = cropWhite(imgBw);
-                imgBw.splice(imgBw.length - 10);
-                //logImage(imgBw);
+                //imgBw.splice(imgBw.length - 10);
+                /*logImage(imgBw);*/
 
-                var buttons = findShapes(imgBw),
-                    button,
+                var button,
                     touchElement;
-                //console.log(buttons);
+
+                buttons = findShapes(imgBw, buttons);
+                console.log(buttons);
 
                 for (var i = 0; i < buttonElements.length; i++) {
                     touchElement = buttonElements[i];
                     if (buttons[i]) {
                         button = buttons[i];
-                        touchElement.style.top = button[0][0] + "px";
-                        touchElement.style.left = button[0][1] + "px";
-                        touchElement.style.height = (button[1][0] - button[0][0]) + "px";
-                        touchElement.style.width = (button[1][1] - button[0][1]) + "px";
+                        touchElement.style.top = button.coords[0][0] + "px";
+                        touchElement.style.left = button.coords[0][1] + "px";
+                        touchElement.style.height = (button.coords[1][0] - button.coords[0][0]) + "px";
+                        touchElement.style.width = (button.coords[1][1] - button.coords[0][1]) + "px";
                         touchElement.style.display = "block";
+                        touchLog.innerHTML += "detected button: " + button.id + ", hash: " + button.sum + "<br>";
                     } else {
                         touchElement.style.display = "none";
                     }
                 }
             },
+            getButtonHash = function(data, button) {
+                var sum = 0;
+                for (var row = button[0][0]; row <= button[1][0]; row++) {
+                    for (var col = button[0][1]; col <= button[1][1]; col++) {
+                        if (data[row]) {
+                            sum += data[row][col];
+                        }
+                    }
+                }
+                return sum;
+            },
             findClick = function() {
                 var imageData = takePicture();
-                //var imgBw = getBW(imageData);
+                var imgBw = getBW(imageData, 100),
+                    hash,
+                    found = false;
+
+                //logImage(imgBw);
+                touchButtonLog.innerHTML = "";
+                for (var i = 0; i < buttons.length; i++) {
+                    hash = getButtonHash(imgBw, buttons[i].coords);
+
+                    if (hash - buttons[i].sum > 100) {
+                        found = true;
+                        touchButtonLog.innerHTML = "touch: " + buttons[i].id + " (" + (hash - buttons[i].sum) + ")<br>";
+                    } else {
+                        if (!found) {
+                            touchButtonLog.innerHTML = hash - buttons[i].sum;//"touch: " + buttons[i].id + "<br>";
+                        }
+                    }
+                }
             };
 
         return {
@@ -305,14 +336,15 @@
         buttonElements.push(document.getElementById("button" + i));
     }
     var touchElement = document.getElementById("touch"),
-        touchLog = document.getElementById("touchLog");
+        touchLog = document.getElementById("touchLog"),
+        touchButtonLog = document.getElementById("touchButtonLog");
     var streaming = (function() {
         var socket = io(),
             timer = null,
 
             sendScreenshot = function() {
-                processor.findButtons();
-                //var touch = processor.findClick();
+                processor.findClick();
+                //processor.findButtons();
 
                 /*if (touch.min.col === Infinity) {
                     touchElement.style.display = "none";
@@ -364,14 +396,14 @@
     } else {
         var source = document.createElement("source");
         //source.setAttribute("src", "video/VID_20141018_030347.mp4");
-        source.setAttribute("src", "video/VID_20141018_220420.mp4");
+        source.setAttribute("src", "video/VID_20141018_215825.mp4");
         source.setAttribute("type", "video/mp4");
         video.appendChild(source);
         setTimeout(function() {
             video.play();
         }, 500);
     }
-    //document.getElementById("findButtons").addEventListener("click", streaming.findButtons, false);
+    document.getElementById("findButtons").addEventListener("click", streaming.findButtons, false);
     video.addEventListener('loadeddata', streaming.start);
 </script>
 </body>
