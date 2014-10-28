@@ -13,11 +13,20 @@ app.get('/detector', function(req, res){
 app.get('/preview', function(req, res){
     res.sendFile(__dirname + '/preview.html');
 });
+app.get('/emulate', function(req, res){
+    res.sendFile(__dirname + '/emulate.html');
+});
 
 io.on('connection', function(socket){
     socket.on('touch', function(data){
         console.log(data);
         socket.broadcast.emit("touch", data);
+    });
+    socket.on('findNextButton', function(data) {
+        socket.broadcast.emit("findNextButton", data);
+    });
+    socket.on('foundButton', function(data) {
+        socket.broadcast.emit("foundButton", data);
     });
 });
 

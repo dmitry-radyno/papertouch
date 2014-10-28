@@ -414,6 +414,11 @@
             findButtons = function() {
                 processor.findButtons();
             };
+
+        socket.on("findButtons", function() {
+            console.log("looking for the buttons");
+            streaming.findButtons();
+        });
         return {
             start: start,
             stop: stop,

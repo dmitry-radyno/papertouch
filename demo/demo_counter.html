@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>TouchPaper - Binding buttons</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0px;
+            padding: 0px;
+        }
+        .counter {
+            font-size: 36px;
+            font-family: Arial;
+            line-height: 50px;
+            text-align: center;
+            margin: 0px auto;
+            padding: 50px;
+            height: 50px;
+            width: 174px;
+        }
+        .counter .up,
+        .counter .down {
+            width: 50px;
+            height: 50px;
+            background-color: #6dff79;
+            border: 1px solid #449149;
+            float: left;
+            font-size: 40px;
+        }
+        .counter .up.clicked,
+        .counter .down.clicked {
+            background-color: #ff4b44;
+            border: 1px solid #932d29;
+        }
+        .counter .value {
+            width: 70px;
+            height: 50px;
+            float: left;
+            border-top: 1px solid #449149;
+            border-bottom: 1px solid #449149;
+        }
+    </style>
+</head>
+<body>
+<div class="counter">
+    <div class="down">-</div>
+    <div class="value"></div>
+    <div class="up">+</div>
+</div>
+<script>
+    var socket = io(),
+        counter = (function(container, initialValue) {
+            var down = container.getElementsByClassName("down")[0],
+                up = container.getElementsByClassName("up")[0],
+                input = container.getElementsByClassName("value")[0],
+                value = initialValue,
+                setValue = function(value) {
+                    input.innerHTML = value;
+                },
+                highlightClick = function(button) {
+                    button.className += " clicked";
+                    window.setTimeout(function() {
+                        button.className = button.className.replace(" clicked", "");
+                    }, 200);
+                },
+                valueUp = function() {
+                    setValue(++value);
+                    highlightClick(up);
+                },
+                valueDown = function() {
+                    setValue(--value);
+                    highlightClick(down);
+                };
+
+            setValue(value);
+            return {
+                up: valueUp,
+                down: valueDown
+            };
+        })(document.getElementsByClassName("counter")[0], 10),
+
+        initButtons = function(buttons) {
+            var handlers = {};
+            socket.on("foundButton", function(data) {
+                var button = JSON.parse(data);
+                console.log("Button is detected", button);
+                if (buttons.length > 0) {
+                    handlers[button.id] = buttons.splice(0, 1)[0];
+                    if (buttons.length > 0) {
+                        socket.emit("findNextButton", "");
+                    } else {
+                        console.log("Initializing is finished. Waiting for touch events...");
+                        socket.on("touch", function(data) {
+                            var button = JSON.parse(data);
+                            if (handlers[button.id]) {
+                                handlers[button.id]();
+                            }
+                        });
+                    }
+                }
+            });
+            socket.emit("findNextButton", "");
+        };
+
+    socket.on("connect", function() {
+        initButtons([
+            function() {
+                counter.up();
+            },
+            function() {
+                counter.down();
+            }
+        ]);
+    });
+</script>
+</body>
+</html>

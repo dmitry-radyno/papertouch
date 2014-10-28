@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>TouchPaper - Piano</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="./audiosynth/audiosynth.js"></script>
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0px;
+            padding: 0px;
+        }
+        .piano {
+            width: 400px;
+            height: 60px;
+            position: relative;
+        }
+        .piano .key {
+            position: absolute;
+            height: 0px;
+            width: 40px;
+            height: 200px;
+
+            border: 1px solid rgba(32,32,32,0.2);
+            border-radius: 0px 0px 5px 5px;
+            cursor: pointer;
+            box-shadow: 0px 5px 1px rgba(32,32,32,0.2);
+            -webkit-transition: margin 0.05s ease, background-color 0.05s ease, box-shadow 0.05s ease;
+        }
+        .piano .key.pressed {
+            background-color: rgb(255,192,32);
+        }
+        .piano .white {
+            background-color: #ffffff;
+            text-shadow: 0px 1px 1px rgba(32,32,32,0.5);
+        }
+        .piano .black {
+            background-color: rgb(32,32,32);
+            text-shadow: 0px -1px 1px rgba(255,255,255,0.5);
+            width: 30px;
+            height: 120px;
+        }
+        .piano #C4 {
+            left: 0px;
+        }
+        .piano #D4 {
+            left: 40px;
+        }
+        .piano #E4 {
+            left: 80px;
+        }
+        .piano #F4 {
+            left: 120px;
+        }
+        .piano #G4 {
+            left: 160px;
+        }
+        .piano #A4 {
+            left: 200px;
+        }
+        .piano #B4 {
+            left: 240px;
+        }
+        .piano #C5 {
+            left: 280px;
+        }
+
+        .piano #C4D {
+            left: 25px;
+        }
+        .piano #D4D {
+            left: 65px;
+        }
+        .piano #F4D {
+            left: 145px;
+        }
+        .piano #G4D {
+            left: 185px;
+        }
+        .piano #A4D {
+            left: 225px;
+        }
+
+    </style>
+</head>
+<body>
+<div class="piano">
+    <div class="key white" id="C4"></div>
+    <div class="key white" id="D4"></div>
+    <div class="key white" id="E4"></div>
+    <div class="key white" id="F4"></div>
+    <div class="key white" id="G4"></div>
+    <div class="key white" id="A4"></div>
+    <div class="key white" id="B4"></div>
+    <div class="key white" id="C5"></div>
+
+    <div class="key black" id="C4D"></div>
+    <div class="key black" id="D4D"></div>
+    <div class="key black" id="F4D"></div>
+    <div class="key black" id="G4D"></div>
+    <div class="key black" id="A4D"></div>
+</div>
+<script>
+    var socket = io(),
+        piano = (function() {
+            var piano = Synth.createInstrument('piano');
+
+            return {
+                playSound: function(sound, octave) {
+                    piano.play(sound, octave, 2);
+                    var key = document.getElementById("" + sound + octave);
+                    if (key) {
+                        key.className += " pressed";
+                        window.setTimeout(function() {
+                            key.className = key.className.replace(" pressed", "");
+                        }, 500);
+                    }
+                }
+            };
+        })(),
+
+        initButtons = function(buttons) {
+            var handlers = {};
+            socket.on("foundButton", function(data) {
+                var button = JSON.parse(data);
+                console.log("Button is detected", button);
+                if (buttons.length > 0) {
+                    handlers[button.id] = buttons.splice(0, 1)[0];
+                    if (buttons.length > 0) {
+                        socket.emit("findNextButton", "");
+                    } else {
+                        console.log("Initializing is finished. Waiting for touch events...");
+                        socket.on("touch", function(data) {
+                            var button = JSON.parse(data);
+                            if (handlers[button.id]) {
+                                handlers[button.id]();
+                            }
+                        });
+                    }
+                }
+            });
+            socket.emit("findNextButton", "");
+        };
+
+    socket.on("connect", function() {
+        initButtons([
+            function() {
+                piano.playSound('C', 4);
+            },
+            function() {
+                piano.playSound('D', 4);
+            },
+            function() {
+                piano.playSound('E', 4);
+            },
+            function() {
+                piano.playSound('F', 4);
+            },
+            function() {
+                piano.playSound('G', 4);
+            },
+            function() {
+                piano.playSound('A', 4);
+            },
+            function() {
+                piano.playSound('B', 4);
+            },
+            function() {
+                piano.playSound('C', 5);
+            }
+        ]);
+    });
+</script>
+</body>
+</html>
