@@ -1,33 +1,11 @@
 <!doctype html>
 <html>
 <head>
-    <title>Socket.IO chat</title>
+    <title>TouchPaper</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font: 13px Helvetica, Arial; }
-        /*.button {
-            position: absolute;
-            border: 1px solid #00ff00;
-        }
-        #touchLog {
-            position: absolute;
-            left: 326px;
-            top: 0px;
-        }
-        #imageLog {
-            position: absolute;
-            left: 0px;
-            top: 350px;
-            width: 400px;
-            height: 400px;
-            font-family: monospace;
-            font-size: 4px;
-        }
-        .px {
-            position: absolute;
-            background: #000;
-            width: 10px; height: 10px;
-        }*/
+
         #box {
             width: 320px;
             height: 240px;
@@ -36,30 +14,10 @@
         }
     </style>
 
-    <!--<script src="/socket.io/socket.io.js"></script>
-    <script type="text/javascript" src="scripts/jsfeat.js"></script>
-    <script type="text/javascript" src="scripts/alg.js"></script>-->
+    <!--<script src="/socket.io/socket.io.js"></script>-->
 </head>
 <body>
 <div id="box"></div>
-<!--<div id="button1" class="button" style="border-color: #ff0000;"></div>
-<div id="button2" class="button" style="border-color: #00ff00;"></div>
-<div id="button3" class="button" style="border-color: #0000ff;"></div>
-<div id="button4" class="button" style="border-color: #ff00ff;"></div>
-<div id="button5" class="button" style="border-color: #ffff00;"></div>
-<div id="button6" class="button"></div>
-<div id="button7" class="button"></div>
-<div id="button8" class="button"></div>
-<div id="button9" class="button"></div>
-<div id="button10" class="button"></div>
-
-<div id="touchLog"></div>
-<div id="imageLog"></div>
-<video id="webcam" width="320" height="240" loop muted style="display: none;"></video>
-<div id="touchButtonLog" style="font-size: 30px; position: absolute; left: 10px; top: 4px;"></div>
-<canvas id="canvas" width="320" height="240"></canvas>
-<button id="findButtons" style="width: 300px; height: 100px; font-size: 40px; display: block;">Find buttons</button>-->
-
 <style>
     .hidden {
         display: none;
@@ -67,14 +25,14 @@
 </style>
 <script>
     window.TouchPaperDetector = function(container, userOptions) {
-        var attachEvent = function() {},
-            detachEvent = function() {},
-            options = (function() {
+        var options = (function() {
                 var options = {
                         width: 320,
                         height: 240,
                         videoURL: false,
-                        showVideo: false
+                        showVideo: false,
+                        stableTime: 400,
+                        touchSensitivity: 100
                     },
                     option;
 
@@ -142,15 +100,78 @@
                     loopTimer = null;
                 }
             },
+            buttons = [],
+            findButtonsFlag = true,
             nextFrame = function() {
                 var imageData = captureFrame(),
                     matrix = imageDataToMatrix(imageData),
-                    data = getContours(matrix, 100);
-                    buttons = findShapes(data, []);
+                    data = getContours(matrix, 100),
+                    readyToFind = isReadyToFind(data, 0.04);
 
-                imageData = dataToImageData(getContours(imageDataToMatrix(imageData), 100));
+                if (readyToFind) {
+                    buttons = findShapes(data, buttons);
+
+                    data = getContours(imageDataToMatrix(imageData), 100);
+                    buttons = findStableButtons(data, buttons);
+                }
+
+                findTouches(data, buttons);
+
+                imageData = dataToImageData(data);
                 ctx.putImageData(imageData, 0, 0);
                 drawButtons(buttons);
+                drawReadyToFind(readyToFind);
+            },
+
+            findStableButtons = function(data, buttons) {
+                var i, button,
+                    timestamp = (new Date()).valueOf();
+
+                for (i = 0; i < buttons.length; i++) {
+                    button = buttons[i];
+                    if (!button.stable) {
+                        if (!button.foundTime) {
+                            button.foundTime = timestamp;
+                        } else {
+                            if (timestamp - button.foundTime > options.stableTime) {
+                                button.stable = true;
+                                button.isTouched = false;
+                                button.hash = getButtonHash(data, button.coords);
+                                fireEvent("buttonDetected", button);
+                            }
+                        }
+                    }
+                }
+                return buttons;
+            },
+            findTouches = function(data, buttons) {
+                var i, button, newTouchStatus;
+                for (i = 0; i < buttons.length; i++) {
+                    button = buttons[i];
+                    if (button.stable) {
+                        newTouchStatus = isButtonTouched(data, button);
+                        if (button.isTouched !== newTouchStatus) {
+                            button.isTouched = newTouchStatus;
+                            fireEvent(button.isTouched ? "touchstart" : "touchend", button);
+                        }
+                    }
+                }
+            },
+            isButtonTouched = function(data, button) {
+                var buttonHash = getButtonHash(data, button.coords);
+                //console.log(button.hash, buttonHash, buttonHash - button.hash);
+                return buttonHash - button.hash > options.touchSensitivity;
+            },
+            getButtonHash = function(data, coords) {
+                var sum = 0, row, col;
+                for (row = coords[0][0]; row <= coords[1][0]; row++) {
+                    for (col = coords[0][1]; col <= coords[1][1]; col++) {
+                        if (data[row]) {
+                            sum += data[row][col] ? 1 : 0;
+                        }
+                    }
+                }
+                return sum;
             },
             captureFrame = function() {
                 ctx.drawImage(video, 0, 0, options.width, options.height);
@@ -201,6 +222,15 @@
                 }
                 return imageData;
             },
+            isReadyToFind = function(matrix, blackLimit) {
+                var x, y, sum = 0;
+                for (y = 0; y < options.height; y++) {
+                    for (x = 0; x < options.width; x++) {
+                        sum += matrix[y][x];
+                    }
+                }
+                return sum/(options.height*options.width) < blackLimit;
+            },
             getContours = function(matrix, limit) {
                 var x, y;
                 for (y = 0; y < options.height; y++) {
@@ -213,13 +243,22 @@
             drawButtons = function(buttons) {
                 var button;
                 for (var i = 0; i < buttons.length; i++) {
-                    button = buttons[i].coords;
-                    ctx.beginPath();
-                    ctx.lineWidth = "2";
-                    ctx.strokeStyle = "red";
-                    ctx.rect(button[0][0], button[0][1], button[1][1] - button[0][0], button[1][0] - button[0][1]);
-                    ctx.stroke();
+                    button = buttons[i];
+                    if (button.stable) {
+                        ctx.beginPath();
+                        ctx.lineWidth = "2";
+                        ctx.strokeStyle = button.isTouched ? "green" : "red";
+                        ctx.rect(button.coords[0][0], button.coords[0][1], button.coords[1][1] - button.coords[0][0], button.coords[1][0] - button.coords[0][1]);
+                        ctx.stroke();
+                    }
                 }
+            },
+            drawReadyToFind = function(isReadyToFind) {
+                ctx.beginPath();
+                ctx.lineWidth = "2";
+                ctx.fillStyle = isReadyToFind ? "#00ff00" : "#ff0000";
+                ctx.fillRect(4, 4, 20, 20);
+                ctx.stroke();
             },
             findShapes = function(data, existingButtons) {
                 var createTouchRect = function(shape){
@@ -374,28 +413,26 @@
                             var minSize = 10;
                             return (button[1][0] - button[0][0] > minSize) && (button[1][1] - button[0][1] > minSize);
                         },
-                        getButtonHash = function(data, button) {
-                            var sum = 0;
-                            for (var row = button[0][0]; row <= button[1][0]; row++) {
-                                for (var col = button[0][1]; col <= button[1][1]; col++) {
-                                    if (data[row]) {
-                                        sum += data[row][col];
-                                    }
-                                }
-                            }
-                            return sum;
-                        },
                         cropArea = function(data, coords) {
-                            var cropedData = [];
-                            for (var row = coords[0][0], i = 0; row <= coords[1][0]; row++, i++) {
+                            var cropedData = [],
+                                extendSize = 0,
+                                minX = Math.max(0, coords[0][1] - extendSize),
+                                maxX = Math.min(options.width - 1, coords[1][1] + extendSize),
+                                minY = Math.max(0, coords[0][0] - extendSize),
+                                maxY = Math.min(options.width - 1, coords[1][0] + extendSize);
+
+                            for (var row = minY, i = 0; row <= maxY; row++, i++) {
                                 cropedData[i] = [];
-                                for (var col = coords[0][1], j = 0; col <= coords[1][1]; col++, j++) {
+                                for (var col = minX, j = 0; col <= maxX; col++, j++) {
                                     if (data[row]) {
                                         cropedData[i][j] = data[row][col] || 0;
                                     }
                                 }
                             }
                             return cropedData;
+                        },
+                        getButtonSquare = function(coords) {
+                            return (coords[1][1] - coords[0][1]) * (coords[1][0] - coords[0][0]);
                         },
                         uuid = (function() {
                             var index = 1;
@@ -410,12 +447,17 @@
                 for (var i = 0; i < existingButtons.length; i++) {
                     button = findShape(cropArea(data, existingButtons[i].coords));
                     if (button) {
+                        if (getButtonSquare(button) / getButtonSquare(existingButtons[i].coords) < 0.7) {
+                            button = existingButtons[i].coords;
+                        } else {
+                            button[0][0] += existingButtons[i].coords[0][0];
+                            button[0][1] += existingButtons[i].coords[0][1];
+                            button[1][0] += existingButtons[i].coords[0][0];
+                            button[1][1] += existingButtons[i].coords[0][1];
+                        }
                         if (isButton(button)) {
-                            buttons.push({
-                                id: existingButtons[i].id,
-                                sum: existingButtons[i].sum,
-                                coords: button
-                            });
+                            existingButtons[i].coords = button;
+                            buttons.push(existingButtons[i]);
                         }
                         data = subtract(data, button);
                     }
@@ -426,7 +468,7 @@
                         if (isButton(button)) {
                             buttons.push({
                                 id: uuid(),
-                                sum: getButtonHash(data, button),
+                                //sum: getButtonHash(data, button),
                                 coords: button
                             });
                         }
@@ -436,14 +478,28 @@
                     }
                 }
                 return buttons;
+            },
+            events = {},
+            fireEvent = function(eventName, data) {
+                var handlers, i;
+                eventName = eventName.toLowerCase();
+                handlers = events[eventName];
+                for (i = 0; i < handlers.length; i++) {
+                    handlers[i].call({}, data);
+                }
+            },
+            attachEvent = function(eventName, handler) {
+                eventName = eventName.toLowerCase();
+                if (!events[eventName]) {
+                    events[eventName] = [];
+                }
+                events[eventName].push(handler);
             };
-
 
         initVideo();
 
         return {
             attachEvent: attachEvent,
-            detachEvent: detachEvent,
             stop: stopLoop
         };
     };
@@ -452,403 +508,15 @@
         videoURL: "video/VID_20141018_161159.mp4",
         showVideo: true
     });
-
-    /*var width = 320,
-        height = 240;
-
-    var video = document.getElementById('webcam'),
-        canvas = document.getElementById('canvas'),
-        ctx = canvas.getContext('2d');
-
-    var processor = (function() {
-        var img_u8 = new jsfeat.matrix_t(width, height, jsfeat.U8C1_t),
-            img_gxgy = new jsfeat.matrix_t(width, height, jsfeat.S32C2_t),
-            iterateImage = function(data, width, height, callback) {
-                var row, col, index;
-                for (row = 0; row < height; row++) {
-                    for (col = 0; col < width; col++) {
-                        index = (row * width + col);
-                        callback(data[index], row, col);
-                    }
-                }
-            },
-            takePicture = function() {
-                ctx.drawImage(video, 0, 0, width, height);
-                return ctx.getImageData(0, 0, width, height);
-            },
-            logImage = function(bw) {
-                var data = "",
-                    height = bw.length,
-                    width = bw[0].length;
-
-                for (var row = 0; row < height; row++) {
-                    for (var col = 0; col < width; col++) {
-                        data += (bw[row][col] ? "1" : "&nbsp;");
-                    }
-                    data += "<br>";
-                }
-                document.getElementById("imageLog").innerHTML = data;
-            },
-            isEmptyPage = (function() {
-                var emptyTimer = null,
-                    isEmpty = function(data) {
-                        var count = 0,
-                            height = data.length,
-                            width = data[0] ? data[0].length : 0;
-
-                        for (var i = 0; i < data.length; i++) {
-                            for (var j = 0; j < data[i].length; j++) {
-                                if (data[i][j]) {
-                                    count++;
-                                }
-                            }
-                        }
-                        return count/(width*height) < 0.001;
-                    };
-                return function(data) {
-                    if (isEmpty(data)) {
-                        if (emptyTimer) {
-                            var newEmptyTimer = (new Date()).valueOf();
-                            if (newEmptyTimer - emptyTimer > 3000) {
-                                return true;
-                            }
-                        } else {
-                            emptyTimer = (new Date()).valueOf();
-                        }
-                    } else {
-                        emptyTimer = null;
-                    }
-                    return false;
-                };
-            })(),
-            isEmptyRow = function(row) {
-                for (var i = 0; i < row.length; i++) {
-                    if (row[i] > 0) {
-                        return false;
-                    }
-                }
-                return true;
-            },
-            cropWhite = function(img) {
-                var startRow = 0,
-                    endRow = img.length;
-
-                for (var i = 0; i < img.length; i++) {
-                    if (isEmptyRow(img[i])) {
-                        startRow = Math.max(startRow, i);
-                    } else {
-                        break;
-                    }
-                }
-                for (var i = img.length - 1; i >= 0; i--) {
-                    if (isEmptyRow(img[i])) {
-                        endRow = Math.min(endRow, i);
-                    } else {
-                        break;
-                    }
-                }
-
-                var startCol = 0;
-                for (var col = 0; col < img[0].length; col++) {
-                    var isEmpty = true;
-                    for (var row = 0; row < img.length; row++) {
-                        if (img[row][col] && img[row][col] > 0) {
-                            isEmpty = false;
-                            break;
-                        }
-                    }
-                    if (isEmpty) {
-                        startCol = Math.max(startCol, col);
-                    } else {
-                        break;
-                    }
-                }
-
-                var endCol = img[0].length - 1;
-                for (var col = img[0].length - 1; col >= 0; col--) {
-                    var isEmpty = true;
-                    for (var row = 0; row < img.length; row++) {
-                        if (img[row][col] > 0) {
-                            isEmpty = false;
-                            break;
-                        }
-                    }
-                    if (isEmpty) {
-                        endCol = Math.min(endCol, col);
-                    } else {
-                        break;
-                    }
-                }
-
-                img.splice(endRow, img.length - endRow);
-                img.splice(0, startRow);
-                for (var i = 0; i < img.length; i++) {
-                    img[i].splice(endCol, img[i].length - endCol);
-                    img[i].splice(0, startCol);
-                }
-
-                // add whitespaces
-                var height = img.length,
-                    width = img[0].length;
-
-                for (var i = 0; i < height; i++) {
-                    img[i] = [0].concat(img[i]);
-                    img[i].push(0);
-                }
-
-                var arr = [];
-                for (var i = 0; i < width + 2; i++) {
-                    arr.push(0);
-                }
-                img = [arr].concat(img);
-                img.push(arr);
-
-                return img;
-            },
-            lookForTouches = function(imageData) {
-                var bw = getBW(imageData),
-                    whiteCoords = [];
-
-                //logImage(bw);
-                iterateImage(bw, width, height, function(v, row, col) {
-                    if (v > 250) {
-                        whiteCoords.push({ row: row, col: col });
-                    }
-                });
-                var minRow = Infinity, maxRow = -1, minCol = Infinity, maxCol = -1;
-                for (var i = 0; i < whiteCoords.length; i++) {
-                    minRow = Math.min(minRow, whiteCoords[i].row);
-                    minCol = Math.min(minCol, whiteCoords[i].col);
-                    maxRow = Math.max(maxRow, whiteCoords[i].row);
-                    maxCol = Math.max(maxCol, whiteCoords[i].col);
-                }
-
-                var result = {
-                    min: {
-                        row: minRow,
-                        col: minCol
-                    },
-                    max: {
-                        row: maxRow,
-                        col: maxCol
-                    }
-                };
-                return result;
-                return result;
-            },
-            getBW = function(imageData, blackLimit) {
-                jsfeat.imgproc.grayscale(imageData.data, width, height, img_u8);
-                //fny(img_u8, img_u8, 100, 70);
-                //jsfeat.imgproc.sobel_derivatives(img_u8, img_gxgy);
-                //jsfeat.imgproc.scharr_derivatives(img_u8, img_gxgy);
-
-                *//*var data_u32 = new Uint32Array(imageData.data.buffer);
-                var alpha = (0xff << 24);
-                var i = img_u8.cols*img_u8.rows, pix = 0;
-                while(--i >= 0) {
-                    pix = img_u8.data[i];
-                    data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
-                }*//*
-
-                *//*var data_u32 = new Uint32Array(imageData.data.buffer);
-                var alpha = (0xff << 24);
-                var i = img_u8.cols*img_u8.rows, pix=0, gx = 0, gy = 0;
-                while(--i >= 0) {
-                    gx = Math.abs(img_gxgy.data[i<<1]>>2)&0xff;
-                    gy = Math.abs(img_gxgy.data[(i<<1)+1]>>2)&0xff;
-                    pix = ((gx + gy)>>1)&0xff;
-                    data_u32[i] = (pix << 24) | (gx << 16) | (0 << 8) | gy;
-                }*//*
-                ctx.putImageData(imageData, 0, 0);
-
-                var limit = blackLimit || 100;
-                var data = imageData.data;
-                for (var i = 0; i < data.length; i+=4) {
-                    if (data[i] > limit && data[i + 1] > limit && data[i + 2] > limit) {
-                        data[i] = data[i + 1] = data[i + 2] = 255;
-                    }
-                }
-
-                var imgBw = [],
-                        v, size = imageData.data.length,
-                        row = 0, col = 0;
-
-                imgBw[0] = [];
-                for (var i = 0; i < size; i++) {
-                    row = Math.floor(Math.round(i/4)/width);
-                    v = Math.round((imageData.data[i] + imageData.data[i + 1] + imageData.data[i + 2])/3) > 200 ? 0 : 1;
-                    imgBw[row][col] = v;
-                    i += 3;
-                    col++;
-                    if (col >= width && i < size - 1) {
-                        row++;
-                        imgBw[row] = [];
-                        col = 0;
-                    }
-                }
-                return imgBw;
-            },
-            buttons = [],
-            findButtons = function() {
-                var imageData = takePicture();
-                var imgBw = getBW(imageData);
-                //imgBw = cropWhite(imgBw);
-                //imgBw.splice(imgBw.length - 10);
-                *//*logImage(imgBw);*//*
-
-                var button,
-                    touchElement;
-
-                buttons = findShapes(imgBw, buttons);
-                console.log(buttons);
-
-                for (var i = 0; i < buttonElements.length; i++) {
-                    touchElement = buttonElements[i];
-                    if (buttons[i]) {
-                        button = buttons[i];
-                        touchElement.style.top = button.coords[0][0] + "px";
-                        touchElement.style.left = button.coords[0][1] + "px";
-                        touchElement.style.height = (button.coords[1][0] - button.coords[0][0]) + "px";
-                        touchElement.style.width = (button.coords[1][1] - button.coords[0][1]) + "px";
-                        touchElement.style.display = "block";
-                        touchLog.innerHTML += "detected button: " + button.id + ", hash: " + button.sum + "<br>";
-                    } else {
-                        touchElement.style.display = "none";
-                    }
-                }
-            },
-            getButtonHash = function(data, button) {
-                var sum = 0;
-                for (var row = button[0][0]; row <= button[1][0]; row++) {
-                    for (var col = button[0][1]; col <= button[1][1]; col++) {
-                        if (data[row]) {
-                            sum += data[row][col];
-                        }
-                    }
-                }
-                return sum;
-            },
-            findClick = function() {
-                var imageData = takePicture();
-                var imgBw = getBW(imageData, 100),
-                    hash,
-                    found = false;
-
-                //logImage(imgBw);
-                if (isEmptyPage(imgBw)) {
-                    touchButtonLog.innerHTML = "WHITE PAGE";
-                    return null;
-                } else {
-                    touchButtonLog.innerHTML = "";
-                    var touches = [];
-                    for (var i = 0; i < buttons.length; i++) {
-                        hash = getButtonHash(imgBw, buttons[i].coords);
-
-                        if (hash - buttons[i].sum > 100) {
-                            found = true;
-                            touchButtonLog.innerHTML = "touch: " + buttons[i].id + " (" + (hash - buttons[i].sum) + ")<br>";
-                            touches.push({
-                                id: buttons[i].id,
-                                hash: hash - buttons[i].sum
-                            });
-                            //return { id: buttons[i].id };
-                        } else {
-                            if (!found) {
-                                touchButtonLog.innerHTML = hash - buttons[i].sum;//"touch: " + buttons[i].id + "<br>";
-                            }
-                        }
-                    }
-                    touches = touches.sort(function (touch1, touch2) {
-                        return touch1.hash > touch2.hash ? 1 : -1;
-                    });
-                    if (touches.length > 0) {
-                        return touches[0];
-                    } else {
-                        return null;
-                    }
-                }
-            };
-
-        return {
-            findButtons: findButtons,
-            findClick: findClick
-            *//*getBw: getBW,
-
-            lookForTouches: lookForTouches,*//*
-
-        };
-    })();
-
-    var buttonElements = [];
-    for (var i = 1; i < 10; i++) {
-        buttonElements.push(document.getElementById("button" + i));
-    }
-    var touchElement = document.getElementById("touch"),
-        touchLog = document.getElementById("touchLog"),
-        touchButtonLog = document.getElementById("touchButtonLog");
-    var streaming = (function() {
-        var socket = io(),
-            timer = null,
-
-            sendScreenshot = function() {
-                var click = processor.findClick();
-                if (click) {
-                    socket.emit("touch", JSON.stringify({
-                        button: click
-                    }));
-                }
-            },
-            next = function() {
-                sendScreenshot();
-            },
-            start = function() {
-                timer = window.setInterval(sendScreenshot, 20);
-            },
-            stop = function() {
-                if (timer) {
-                    window.clearInterval(timer);
-                    timer = null;
-                }
-            },
-            findButtons = function() {
-                processor.findButtons();
-            };
-
-        socket.on("findButtons", function() {
-            console.log("looking for the buttons");
-            streaming.findButtons();
-        });
-        return {
-            start: start,
-            stop: stop,
-            next: next,
-            findButtons: findButtons
-        };
-    })();
-
-    if (0) {
-        window.navigator.webkitGetUserMedia({video: true}, function(stream) {
-            try {
-                video.src = window.URL.createObjectURL(stream);
-            } catch (error) {
-                video.src = stream;
-            }
-            setTimeout(function() {
-                video.play();
-            }, 500);
-        }, function (error) {});
-    } else {
-        var source = document.createElement("source");
-        //source.setAttribute("src", "video/VID_20141018_030347.mp4");
-        source.setAttribute("src", "video/VID_20141018_161159.mp4");
-        source.setAttribute("type", "video/mp4");
-        video.appendChild(source);
-        setTimeout(function() {
-            video.play();
-        }, 500);
-    }
-    document.getElementById("findButtons").addEventListener("click", streaming.findButtons, false);
-    video.addEventListener('loadeddata', streaming.start);*/
+    touchDetector.attachEvent("buttonDetected", function(button) {
+        console.log("New button: ", button.id);
+    });
+    touchDetector.attachEvent("touchStart", function(button) {
+        console.log("Touch start: ", button.id);
+    });
+    touchDetector.attachEvent("touchEnd", function(button) {
+        console.log("Touch end: ", button.id);
+    });
 </script>
 </body>
 </html>
