@@ -75,7 +75,6 @@ window.TouchPaperDetector = function(container, userOptions) {
             }
         },
         buttons = [],
-        findButtonsFlag = true,
         nextFrame = function() {
             var imageData = captureFrame(),
                 matrix = imageDataToMatrix(imageData),
@@ -467,12 +466,15 @@ window.TouchPaperDetector = function(container, userOptions) {
                 events[eventName] = [];
             }
             events[eventName].push(handler);
+        },
+        clearButtons = function() {
+            buttons = [];
         };
 
     initVideo();
 
     return {
         attachEvent: attachEvent,
-        stop: stopLoop
+        clear: clearButtons
     };
 };

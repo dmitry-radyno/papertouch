@@ -27,7 +27,7 @@
 <script>
     var touchDetector = TouchPaperDetector(document.getElementById("box"), {
         videoURL: "video/VID_20141018_161159.mp4",
-        showVideo: false
+        showVideo: true
     });
     touchDetector.attachEvent("buttonDetected", function(button) {
         console.log("New button: ", button.id);
