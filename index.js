@@ -4,7 +4,7 @@ var express = require('express'),
     io = require('socket.io')(http);
 
 app.use("/video", express.static(__dirname + '/video'));
-app.use("/scripts", express.static(__dirname + '/scripts'));
+app.use("/codebase", express.static(__dirname + '/codebase'));
 app.use("/demo", express.static(__dirname + '/demo'));
 
 app.get('/detector', function(req, res){
@@ -30,6 +30,6 @@ io.on('connection', function(socket){
     });
 });
 
-http.listen(8081, function(){
+http.listen(8080, function(){
   console.log('listening port 8080');
 });
