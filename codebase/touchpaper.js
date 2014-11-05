@@ -204,10 +204,13 @@ window.TouchPaperDetector = function(container, userOptions) {
             return sum/(options.height*options.width) < blackLimit;
         },
         getContours = function(matrix, limit) {
-            var x, y;
+            var x, y, isCloseToBorder = function(x, y) {
+                var borderSize = 30;
+                return (y < borderSize || y > options.height - borderSize || x < borderSize || x > options.width - borderSize);
+            };
             for (y = 0; y < options.height; y++) {
                 for (x = 0; x < options.width; x++) {
-                    matrix[y][x] = (matrix[y][x] > limit) ? 0 : 1;
+                    matrix[y][x] = (/*isCloseToBorder(x, y) || */matrix[y][x] > limit) ? 0 : 1;
                 }
             }
             return matrix;

@@ -123,25 +123,20 @@
 
         initButtons = function(buttons) {
             var handlers = {};
-            socket.on("foundButton", function(data) {
+            socket.on("buttonDetected", function(data) {
                 var button = JSON.parse(data);
                 console.log("Button is detected", button);
                 if (buttons.length > 0) {
                     handlers[button.id] = buttons.splice(0, 1)[0];
-                    if (buttons.length > 0) {
-                        socket.emit("findNextButton", "");
-                    } else {
-                        console.log("Initializing is finished. Waiting for touch events...");
-                        socket.on("touch", function(data) {
-                            var button = JSON.parse(data);
-                            if (handlers[button.id]) {
-                                handlers[button.id]();
-                            }
-                        });
-                    }
                 }
             });
-            socket.emit("findNextButton", "");
+            socket.on("touchstart", function(data) {
+                var button = JSON.parse(data);
+                if (handlers[button.id]) {
+                    handlers[button.id]();
+                }
+            });
+            socket.emit("clear", "");
         };
 
     socket.on("connect", function() {

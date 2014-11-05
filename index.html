@@ -26,17 +26,25 @@
 </style>
 <script>
     var touchDetector = TouchPaperDetector(document.getElementById("box"), {
-        videoURL: "video/VID_20141018_161159.mp4",
-        showVideo: true
-    });
+            videoURL: "video/VID_20141018_161159.mp4",
+            showVideo: true
+        }),
+        socket = io('http://192.168.0.103:8080');;
+
     touchDetector.attachEvent("buttonDetected", function(button) {
-        console.log("New button: ", button.id);
+        socket.emit("buttonDetected", JSON.stringify({ id: button.id }));
+        /*console.log("New button: ", button.id);*/
     });
     touchDetector.attachEvent("touchStart", function(button) {
-        console.log("Touch start: ", button.id);
+        socket.emit("touchstart", JSON.stringify({ id: button.id }));
+        /*console.log("Touch start: ", button.id);*/
     });
     touchDetector.attachEvent("touchEnd", function(button) {
-        console.log("Touch end: ", button.id);
+        socket.emit("touchend", JSON.stringify({ id: button.id }));
+        /*console.log("Touch end: ", button.id);*/
+    });
+    socket.on("clear", function() {
+        touchDetector.clear();
     });
 </script>
 </body>

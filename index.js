@@ -18,15 +18,18 @@ app.get('/emulate', function(req, res){
 });
 
 io.on('connection', function(socket){
-    socket.on('touch', function(data){
-        console.log(data);
-        socket.broadcast.emit("touch", data);
+    socket.on('touchstart', function(data){
+        console.log("touchstart: ", data);
+        socket.broadcast.emit("touchstart", data);
     });
-    socket.on('findNextButton', function(data) {
-        socket.broadcast.emit("findNextButton", data);
+    socket.on('touchend', function(data){
+        socket.broadcast.emit("touchend", data);
     });
-    socket.on('foundButton', function(data) {
-        socket.broadcast.emit("foundButton", data);
+    socket.on('buttonDetected', function(data) {
+        socket.broadcast.emit("buttonDetected", data);
+    });
+    socket.on('clear', function(data){
+        socket.broadcast.emit("clear", data);
     });
 });
 
