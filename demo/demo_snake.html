@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+
+
+    <link rel="stylesheet" href="./public/stylesheets/snake.css"/>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="./public/javascripts/jquery.min.js"></script>
+    <script src="./public/javascripts/snake.js"></script>
+    <script src="./public/javascripts/sockets.js">
+
+    </script>
+</head>
+
+<body>
+
+
+<div id="game-area" tabindex="0"></div>
+
+<script type="text/javascript">
+    var socket = io('http://localhost:8080'),
+        initButtons = function(buttons) {
+            var handlers = {};
+            socket.on("buttonDetected", function(data) {
+                var button = JSON.parse(data);
+                console.log("Button is detected", button);
+                if (buttons.length > 0) {
+                    handlers[button.id] = buttons.splice(0, 1)[0];
+                }
+            });
+            socket.emit("clear", "");
+            socket.on("touchstart", function(data) {
+                var button = JSON.parse(data);
+                if (handlers[button.id]) {
+                    handlers[button.id]();
+                }
+            });
+        };
+
+    socket.on("connect", function() {
+        initButtons([
+            function() {
+                console.log("left");
+                eventListener.fireEvent("init");
+                eventListener.fireEvent("left");
+            },
+            function() {
+                console.log("up");
+                eventListener.fireEvent("init");
+                eventListener.fireEvent("up");
+            },
+            function() {
+                console.log("down");
+                eventListener.fireEvent("init");
+                eventListener.fireEvent("down");
+            },
+            function() {
+                console.log("right");
+                eventListener.fireEvent("init");
+                eventListener.fireEvent("right");
+
+            }
+        ]);
+    });
+
+    var mySnakeBoard = new SNAKE.Board(  {
+        boardContainer: "game-area",
+        fullScreen: true
+    });
+</script>
+
+</body>
+</html>

@@ -1,16 +1,4 @@
-/*
- JavaScript Snake
- By Patrick Gillespie
- http://patorjk.com/games/snake
- */
-
-/**
- * @module Snake
- * @class SNAKE
- */
-
 var SNAKE = SNAKE || {};
-var socket = io('http://localhost:8081');
 
 var eventListener = (function() {
     var callbacks = {},
@@ -27,45 +15,6 @@ var eventListener = (function() {
         fireEvent: fireEvent
     };
 })();
-
-socket.on('touch',function(data){
-    var button = JSON.parse(data);
-    eventListener.fireEvent("init");
-    console.log(button.button.id);
-    switch (button.button.id) {
-        case 1:
-            eventListener.fireEvent("down");
-            break;
-        case 2:
-            eventListener.fireEvent("left");
-            break;
-        case 3:
-            eventListener.fireEvent("right");
-            break;
-        case 4:
-            eventListener.fireEvent("up");
-            break;
-    }
-});
-
-/*socket.on('up',function(){
-    socket.emit('clientMoveUp');
-});
-
-socket.on('right',function(){
-    socket.emit('clientMoveRight');
-});
-
-socket.on('down',function(){
-    socket.emit('clientMoveDown');
-});
-
-socket.on('left',function(){
-    socket.emit('clientMoveLeft');
-});*/
-
-
-
 
 /**
  * @method addEventListener
@@ -276,14 +225,6 @@ SNAKE.Snake = SNAKE.Snake || (function() {
                     moveQueue.unshift(0);//SnakeDirection = 0;
                 }
             });
-            /*socket.on('moveUp', function (x, y) {
-                console.error('moveUp');
-                var e = jQuery.Event("keyup", { keyCode: 38 });
-                jQuery("body").trigger(e);
-                if (lastMove !== 2 || snakeLength === 1) {
-                    moveQueue.unshift(0);//SnakeDirection = 0;
-                }
-            });*/
 
             eventListener.on('right', function (x, y) {
                 var e = jQuery.Event("keyup", { keyCode: 39 });
@@ -309,9 +250,6 @@ SNAKE.Snake = SNAKE.Snake || (function() {
 
             var snakeLength = me.snakeLength;
             var lastMove = moveQueue[0] || currentDirection;
-
-            //console.log("lastmove="+lastMove);
-            //console.log("dir="+keyNum);
 
             switch (keyNum) {
                 case 37:

@@ -103,10 +103,10 @@
     socket.on("connect", function() {
         initButtons([
             function() {
-                counter.up();
+                counter.down();
             },
             function() {
-                counter.down();
+                counter.up();
             }
         ]);
     });

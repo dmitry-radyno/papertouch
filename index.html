@@ -26,10 +26,10 @@
 </style>
 <script>
     var touchDetector = TouchPaperDetector(document.getElementById("box"), {
-            videoURL: "video/VID_20141018_161159.mp4",
+            /*videoURL: "video/VID_20141106_093822.mp4",*/
             showVideo: true
         }),
-        socket = io('http://192.168.0.103:8080');;
+        socket = io('http://192.168.0.100:8080');;
 
     touchDetector.attachEvent("buttonDetected", function(button) {
         socket.emit("buttonDetected", JSON.stringify({ id: button.id }));

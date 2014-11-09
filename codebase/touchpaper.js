@@ -75,18 +75,28 @@ window.TouchPaperDetector = function(container, userOptions) {
             }
         },
         buttons = [],
+        readyToFind = false,
+        startTime = null,
         nextFrame = function() {
             var imageData = captureFrame(),
                 matrix = imageDataToMatrix(imageData),
-                data = getContours(matrix, 100),
-                readyToFind = isReadyToFind(data, 0.04);
+                data = getContours(matrix, 80);
+                //readyToFind = isReadyToFind(data, 0.1);
 
             if (readyToFind) {
+                if (!startTime) {
+                    startTime = (new Date()).valueOf();
+                }
                 buttons = findShapes(data, buttons);
-                data = getContours(imageDataToMatrix(imageData), 100);
+                data = getContours(imageDataToMatrix(imageData), 120);
                 buttons = findStableButtons(data, buttons);
+                var timeDiff = ((new Date()).valueOf() - startTime);
+                if (timeDiff > 5000) {
+                    startTime = null;
+                    readyToFind = false;
+                }
             }
-
+            data = getContours(imageDataToMatrix(imageData), 120);
             findTouches(data, buttons);
 
             imageData = dataToImageData(data);
@@ -102,16 +112,16 @@ window.TouchPaperDetector = function(container, userOptions) {
             for (i = 0; i < buttons.length; i++) {
                 button = buttons[i];
                 if (!button.stable) {
-                    if (!button.foundTime) {
+                    /*if (!button.foundTime) {
                         button.foundTime = timestamp;
                     } else {
-                        if (timestamp - button.foundTime > options.stableTime) {
+                        if (timestamp - button.foundTime > options.stableTime) {*/
                             button.stable = true;
                             button.isTouched = false;
                             button.hash = getButtonHash(data, button.coords);
                             fireEvent("buttonDetected", button);
-                        }
-                    }
+                        //}
+                    //}
                 }
             }
             return buttons;
@@ -223,7 +233,7 @@ window.TouchPaperDetector = function(container, userOptions) {
                     ctx.beginPath();
                     ctx.lineWidth = "2";
                     ctx.strokeStyle = button.isTouched ? "green" : "red";
-                    ctx.rect(button.coords[0][0], button.coords[0][1], button.coords[1][1] - button.coords[0][0], button.coords[1][0] - button.coords[0][1]);
+                    ctx.rect(button.coords[0][1], button.coords[0][0], button.coords[1][1] - button.coords[0][1], button.coords[1][0] - button.coords[0][0]);
                     ctx.stroke();
                 }
             }
@@ -419,6 +429,7 @@ window.TouchPaperDetector = function(container, userOptions) {
                 button = null,
                 buttons = [];
 
+            debugger;
             for (var i = 0; i < existingButtons.length; i++) {
                 button = findShape(cropArea(data, existingButtons[i].coords));
                 if (button) {
@@ -472,6 +483,7 @@ window.TouchPaperDetector = function(container, userOptions) {
         },
         clearButtons = function() {
             buttons = [];
+            readyToFind = true;
         };
 
     initVideo();
